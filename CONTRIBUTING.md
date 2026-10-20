@@ -1,190 +1,198 @@
 # Contributing to Shade Stellar Contract
 
-Thank you for your interest in contributing to this project! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to Shade Protocol! This document is the canonical contributor guide designed to take you from discovering an issue to getting your pull request merged into `main`.
 
-## Getting Started
+---
 
-1. Fork the repository
-2. Clone your fork: `git clone https://github.com/ShadeProtocol/shade-stellar-contract.git`
-3. Create a new branch: `git checkout -b feature/your-feature-name`
-4. Make your changes
-5. Test your changes
-6. Commit your changes (see [Commit Guidelines](#commit-guidelines))
-7. Push to your fork: `git push origin feature/your-feature-name`
-8. Open a Pull Request
+## Table of Contents
 
-## Development Setup
+1. [Finding and Claiming an Issue](#1-finding-and-claiming-an-issue)
+2. [Development Setup & Toolchain](#2-development-setup--toolchain)
+3. [Branch Naming Conventions](#3-branch-naming-conventions)
+4. [Commit Guidelines](#4-commit-guidelines)
+5. [Local Pre-PR Verification Checklist](#5-local-pre-pr-verification-checklist)
+6. [Contract & Documentation Synchronization Rules](#6-contract--documentation-synchronization-rules)
+7. [Submitting a Pull Request](#7-submitting-a-pull-request)
+8. [Review Process & Expectations](#8-review-process--expectations)
+9. [Reference Links](#9-reference-links)
+10. [Code of Conduct](#10-code-of-conduct)
+
+---
+
+## 1. Finding and Claiming an Issue
+
+All active engineering tasks and bounty tracks are tracked in the [GitHub Issue Tracker](https://github.com/ShadeProtocol/shade-stellar-contract/issues).
+
+### Finding Work
+* **Good First Issues**: Labeled `good first issue` — ideal for new contributors to familiarize themselves with the codebase.
+* **Documentation & Guides**: Labeled `documentation` — expanding guides, reference pages, and architectural diagrams.
+* **Bounties & Stellar Wave**: Labeled `Stellar Wave` — tracked for Stellar Wave and ecosystem developer rewards.
+
+### Claiming an Issue
+1. Leave a comment on the issue stating your interest and an overview of your planned approach.
+2. A maintainer will assign the issue to you or confirm that you can proceed.
+3. **Turnaround & Stale Policy**: To keep development moving, contributors are expected to open a draft PR or post a progress update within **7 calendar days** of claiming an issue (or within the timeframe designated for specific bounty tracks). Inactive assignments will be unassigned and reopened to the community.
+
+---
+
+## 2. Development Setup & Toolchain
 
 ### Prerequisites
+* **Rust**: Active stable toolchain (`rustup update stable`).
+* **WASM Target**: `rustup target add wasm32-unknown-unknown`.
+* **Stellar CLI**: Installed and on `PATH` (`cargo install --locked stellar-cli` or via package manager).
+* **Git & Pre-commit**: Python pre-commit hooks configured.
 
-- Rust (stable toolchain)
-- Cargo
-- Soroban CLI (if needed for contract deployment)
-
-### Building the Project
-
+### Quick Setup
 ```bash
-# Build all contracts
-cargo build --workspace --release
+# Clone the repository
+git clone https://github.com/ShadeProtocol/shade-stellar-contract.git
+cd shade-stellar-contract
 
-# Build a specific contract
-cargo build --manifest-path contracts/shade/Cargo.toml --release
-```
-
-### Running Tests
-
-```bash
-# Run all tests
-cargo test --workspace --all-features
-
-# Run tests for a specific contract
-cargo test --manifest-path contracts/shade/Cargo.toml
-```
-
-### Code Formatting
-
-```bash
-# Format all code
-cargo fmt --all
-
-# Check formatting
-cargo fmt --all -- --check
-```
-
-### Linting
-
-```bash
-# Run clippy
-cargo clippy --workspace --all-features -- -D warnings
-```
-
-## Pre-commit Hooks
-
-This project uses pre-commit hooks to ensure code quality. Install and set them up:
-
-```bash
-# Install pre-commit (requires Python)
+# Install git pre-commit hooks
 pip install pre-commit
-
-# Install the hooks
 pre-commit install
 
-# Run hooks manually
-pre-commit run --all-files
+# Verify build
+cargo build --workspace
+cargo test --workspace
 ```
 
-The hooks will automatically:
+---
 
-- Validate YAML files
-- Format Rust code
-- Run clippy checks
-- Check for merge conflicts
+## 3. Branch Naming Conventions
 
-## Commit Guidelines
+Always branch from the latest `main` branch. Use descriptive branch names prefixed with the change type and referencing the issue number:
 
-### Commit Message Format
+| Prefix | Usage | Example |
+|---|---|---|
+| `feat/` | New smart contract feature or capability | `feat/refund-routing-204` |
+| `fix/` | Bug fix in contracts or scripts | `fix/auth-reentrancy-105` |
+| `docs/` | Documentation additions or updates | `docs/contributor-workflow-507` |
+| `test/` | Adding, updating, or fixing tests | `test/storage-replay-210` |
+| `refactor/` | Code refactoring without behavior changes | `refactor/invoice-storage-301` |
+| `ci/` | CI/CD and automation workflow changes | `ci/coverage-threshold-412` |
+| `chore/` | Tooling, dependencies, or maintenance | `chore/update-sdk-22` |
 
-We follow conventional commit format:
+---
 
+## 4. Commit Guidelines
+
+We enforce the **Conventional Commits 1.0.0** specification.
+
+### Format
+```text
+<type>(<scope>): <short description> (#<issue_number>)
+
+[optional longer body explaining context and rationale]
+
+[optional footer(s), e.g., Fixes #<issue_number>]
 ```
-<type>(<scope>): <subject>
 
-<body>
-
-<footer>
-```
-
-### Types
-
-- `feat`: A new feature
-- `fix`: A bug fix
-- `docs`: Documentation only changes
-- `style`: Code style changes (formatting, missing semicolons, etc.)
-- `refactor`: Code refactoring
-- `test`: Adding or updating tests
-- `chore`: Maintenance tasks
+### Allowed Types
+* `feat`: A new feature or contract capability.
+* `fix`: A bug fix.
+* `docs`: Documentation-only changes.
+* `style`: Formatting, whitespace, or naming (no production logic change).
+* `refactor`: Restructuring code without changing observable behavior.
+* `test`: Adding or modifying test suites.
+* `chore`: Build scripts, dependencies, or repository hygiene.
 
 ### Examples
+```text
+feat(contract): add refund routing for unspent deposit balances (#204)
 
+docs(contributing): document full contributor workflow and PR lifecycle (#507)
+
+fix(shade): prevent payer address mutation during partial payments (#314)
 ```
-feat(contract): add new token transfer function
 
-fix(test): correct assertion in hello_world test
+---
 
-docs: update README with installation instructions
+## 5. Local Pre-PR Verification Checklist
+
+Before pushing your branch and opening a pull request, run the exact test and lint suite executed by CI:
+
+```bash
+# 1. Format code check
+make fmt-check
+# Or: cargo fmt --all -- --check
+
+# 2. Clippy lint checks
+make lint
+# Or: cargo clippy --workspace --all-targets -- -D warnings
+
+# 3. Workspace tests
+make test
+# Or: cargo test --workspace
+
+# 4. Snapshot review (if snapshots changed)
+cargo insta review
+
+# 5. Build optimized WASM binaries
+make build-optimized
 ```
 
-## Pull Request Process
+All 5 checks must pass locally with zero warnings or errors.
 
-1. **Update Documentation**: If you're adding a new feature, update the README or relevant docs
-2. **Add Tests**: Ensure all new code is covered by tests
-3. **Run Checks**: Make sure all tests pass and code is formatted
-4. **Fill PR Template**: Complete all relevant sections in the PR template
-5. **Request Review**: Request review from maintainers
+---
 
-## Documentation Contributions
+## 6. Contract & Documentation Synchronization Rules
 
-If your PR adds or changes a page under `docs/`, follow the [Documentation Style Guide](docs/contributing/documentation-style-guide.md) and use the matching template from [`docs/contributing/templates/`](docs/contributing/templates/). Every docs PR must satisfy the [review checklist](docs/contributing/documentation-style-guide.md#review-checklist) before it can be merged.
+To prevent code and documentation drift, Shade enforces strict synchronization requirements on every PR:
 
-### Keeping reference docs in sync
+1. **Public Interface Changes (`ShadeTrait`)**:
+   * Any change that adds, removes, or renames a public function on `ShadeTrait` must update [`docs/reference/shade-interface.md`](docs/reference/shade-interface.md) in the **same pull request**.
+2. **Data Types & Storage Layout**:
+   * Any change to data structures or `DataKey` in `contracts/shade/src/types.rs` must update [`docs/reference/data-types.md`](docs/reference/data-types.md) and [`docs/architecture/storage-model.md`](docs/architecture/storage-model.md).
+3. **Error Codes**:
+   * Any new variant added to `contracts/shade/src/errors.rs` must be documented with its numeric code, trigger, and corrective action in [`docs/reference/errors.md`](docs/reference/errors.md).
+4. **Style Guide Compliance**:
+   * New documentation pages must adhere to the [Documentation Style Guide](docs/contributing/documentation-style-guide.md) and use the templates under [`docs/contributing/templates/`](docs/contributing/templates/).
 
-Any PR that changes `ShadeTrait` (adds, removes, or renames a function) must also update `docs/reference/shade-interface.md` in the same PR. Similarly, any change to a public type in `contracts/shade/src/types.rs` must update `docs/reference/data-types.md`. This ensures the API reference stays accurate.
+---
 
-### PR Checklist
+## 7. Submitting a Pull Request
 
-Before submitting a PR, ensure:
+1. **Push your branch** to your fork:
+   ```bash
+   git push -u origin <branch-name>
+   ```
+2. **Open the PR**: Use GitHub to open a pull request targeting `ShadeProtocol/shade-stellar-contract:main`.
+3. **Fill out the Pull Request Template**:
+   * Complete every section in [`.github/pull_request_template.md`](.github/pull_request_template.md).
+   * Explicitly link the issue using `Fixes #<number>` or `Closes #<number>`.
+   * Check off all applicable checklist items.
+   * Provide verifiable test commands or output snippets under **Testing**.
+4. **No Sensitive Payout Information**: Do **not** post raw cryptocurrency wallet addresses in PR descriptions or comments. All bounty reward tracking is resolved via Drips Network profiles.
 
-- [ ] Code follows the project's style guidelines
-- [ ] All tests pass locally
-- [ ] Code is properly formatted (`cargo fmt`)
-- [ ] No clippy warnings (`cargo clippy`)
-- [ ] Documentation is updated (if needed)
-- [ ] Commit messages follow the guidelines
-- [ ] PR description is clear and complete
+---
 
-## Code Style
+## 8. Review Process & Expectations
 
-- Follow Rust standard formatting (enforced by `cargo fmt`)
-- Follow Rust naming conventions
-- Use meaningful variable and function names
-- Add comments for complex logic
-- Keep functions focused and small
-- Write tests for new functionality
+* **Triage & Response Time**: Maintainers review open PRs continuously. Initial feedback is typically provided within **48 to 72 hours**.
+* **Review Requirements**: At least **1 approving review** from a repository maintainer is required before merge.
+* **Handling Feedback**:
+  * Address feedback by pushing additional commits to your PR branch.
+  * Avoid force-pushing over review discussions while active reviews are in progress so maintainers can see incremental diffs.
+  * Once discussions are resolved, maintainers will re-review.
+* **Merging**: Pull requests are merged using **Squash and Merge** to keep the `main` commit history clean and linear.
 
-## Testing Guidelines
+---
 
-- Write unit tests for all new functions
-- Test edge cases and error conditions
-- Ensure test coverage doesn't decrease
-- Use descriptive test names
+## 9. Reference Links
 
-## Reporting Issues
+* [Architecture Overview](docs/architecture/README.md)
+* [System & Flow Diagrams](docs/architecture/diagrams.md)
+* [Getting Started Guide](docs/getting-started/README.md)
+* [Developer Troubleshooting Guide](docs/getting-started/troubleshooting.md)
+* [Frequently Asked Questions (FAQ)](docs/getting-started/faq.md)
+* [Makefile and Scripts Reference](docs/reference/makefile-and-scripts.md)
+* [Documentation Style Guide](docs/contributing/documentation-style-guide.md)
+* [Security Policy](SECURITY.md)
 
-When reporting issues, please include:
+---
 
-- Description of the issue
-- Steps to reproduce
-- Expected behavior
-- Actual behavior
-- Environment details (Rust version, OS, etc.)
-- Relevant logs or error messages
+## 10. Code of Conduct
 
-## Code of Conduct
-
-- Be respectful and inclusive
-- Welcome newcomers and help them learn
-- Focus on constructive feedback
-- Respect different viewpoints and experiences
-
-## Questions?
-
-If you have questions, feel free to:
-
-- Open an issue for discussion
-- Ask in pull request comments
-- Contact the maintainers
-
-Thank you for contributing to the development! 🎉
-
-<br />
-
+We are committed to providing a welcoming, inclusive, and harassment-free environment for all contributors. Please treat fellow community members with respect, communicate constructively, and adhere to open-source collaboration best practices.
