@@ -3,6 +3,7 @@
 Runbooks for protocol operators, written from the [runbook template](../contributing/templates/runbook-template.md).
 
 - [Deployment Runbook](deployment.md) — deploying `shade` (and the standalone `account`/factory contracts, where needed) to local, testnet, and mainnet.
+- [Contract Release & Versioning Process](releases.md) — SemVer rules, reproducible WASM builds, checksum verification, and release tagging.
 - [Contract Upgrade Runbook](upgrade-runbook.md) — pre-flight, execution, verification, and rollback for upgrading a deployed `shade` contract.
 - [Admin Operations and Incident Response Runbook](admin-runbook.md) — routine admin operations (fees, tokens, merchants, roles, platform account) and incident response.
 - [Billing Keeper Operator Guide](billing-keeper.md) — running the off-chain keeper that calls `charge`/`process_charge`/`process_billing_cycle` on the standalone `subscription` contract: entry points, `ChargeOutcome` handling, scheduling, idempotency, and monitoring.
