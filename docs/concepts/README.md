@@ -18,7 +18,11 @@ Deep dives into individual mechanisms, written from the [concept template](../co
 - [Merchant account withdrawals, thresholds, and approval requests](./merchant-account-withdrawals.md) — direct vs approval-based withdrawals, `WithdrawalRequest` states, restriction effects (account contract).
 - [Event ticketing, dynamic pricing, and resale](./event-ticketing.md)
 - [Ticket tiers and tiered issuance](./ticket-tiers.md) — `add_tier`, `issue_tiered_ticket`, supply and capacity invariants (standalone `ticketing` contract).
+- [Event waitlists](./event-waitlists.md) — `join_waitlist`, `get_waitlist`, FIFO positions, and automatic promotion on refund (standalone `ticketing` contract).
 - [Merchant analytics and transaction history](./analytics-and-history.md)
+- [Token analytics and market share metrics](./token-analytics.md) — protocol-wide token volume, dominance, and basis-point market share.
+- [Amounts, token decimals, and rounding](./amounts-and-rounding.md) — base units, per-path rounding direction, remainders, and conversion helpers.
+- [Choosing a subscription model](./choosing-a-subscription-model.md) — hub subscriptions vs. the standalone `subscription` contract.
 - [Auto-withdrawal and merchant settlement](./auto-withdrawal.md)
 - [Payment payloads, swap routing, and the cross-chain bridge placeholder](./payment-payloads-and-routing.md)
 - Fiat-pegged campaign goals and oracle pricing — *planned*.
