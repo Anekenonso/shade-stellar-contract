@@ -10,6 +10,8 @@ mod test_integration;
 #[cfg(test)]
 mod test_refund;
 #[cfg(test)]
+mod test_resource_costs;
+#[cfg(test)]
 mod test_upgrades_downgrades;
 mod types;
 

@@ -141,7 +141,7 @@ Verified against `test_refund.rs`: refund equals the full `plan.amount` immediat
 ### Mechanics
 
 - **Who triggers it:** `cancel_with_prorated_refund`, callable by the customer, the plan's merchant, or `plan.creator`. The party that did *not* initiate the call must also authorize — a customer-initiated refund additionally requires the funds source (`creator`/`merchant`) to authorize, and vice versa, since the funds move via `transfer_from`.
-- **Preview:** `quote_prorated_refund(sub_id)` runs the same formula read-only, with no authorization required.
+- **Preview:** `quote_prorated_refund(sub_id)` runs the same formula read-only, with no authorization required. See [Subscription prorated cancellation refunds](../concepts/subscription-prorated-refunds.md) for the full formula and UI guidance.
 - **Partial refunds:** the formula itself is inherently partial/prorated — there is no separate "full refund" vs. "partial refund" function; the amount returned by the formula *is* the refund, computed from remaining time in the current cycle.
 - **Destination of funds:** pulled via `token_client.transfer_from(spender, source, customer, refund_amount)` where `source = plan.creator.unwrap_or(plan.merchant)` — the same address that receives charges. This requires the source to have **pre-approved the contract** for at least the refund amount; `test_refund_panics_without_merchant_allowance` confirms the call panics otherwise.
 - **Fee handling:** none. The standalone crate deducts no platform fee anywhere in the charge or refund path — 100% of `plan.amount` moves to `plan.creator.unwrap_or(plan.merchant)` and refunds are for the full prorated amount with no fee retained.

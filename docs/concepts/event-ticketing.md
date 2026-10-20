@@ -100,5 +100,6 @@ else:
 
 ## Related pages
 
+- [Ticket tiers and tiered issuance](./ticket-tiers.md) — per-category price and supply caps in the standalone `ticketing` contract
 - [Auto-withdrawal and merchant settlement](./auto-withdrawal.md)
 - [Payment payloads, swap routing, and the cross-chain bridge placeholder](./payment-payloads-and-routing.md)

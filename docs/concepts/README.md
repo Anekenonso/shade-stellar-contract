@@ -8,13 +8,16 @@ Deep dives into individual mechanisms, written from the [concept template](../co
 - [Subscriptions and recurring billing](./subscriptions.md)
 - [Subscription billing authorization and allowances](./subscription-billing-authorization.md) — `authorize_billing`, `get_billing_allowance`, `revoke_billing_authorization`, and how plan price changes affect an existing allowance (standalone `subscription` contract).
 - [Subscription grace periods and past-due handling](./subscription-grace-periods.md) — the `Active`/`PastDue`/`Terminated` state machine, recovery, and event emission (standalone `subscription` contract).
+- [Subscription prorated cancellation refunds](./subscription-prorated-refunds.md) — the proration formula, rounding, authorization, funding source, and quoting (standalone `subscription` contract).
 - Invoices, drafts, and signed invoices — *planned*.
 - [Refunds and voids](./refunds-and-voids.md) — full refunds, partial refunds, voids, amendments, and buyer-initiated expiry claims.
 - [Fees, volume discounts, and time-locked fee changes](./fees.md) — `calculate_fee`, merchant volume discounts, and the `propose_fee` / `execute_fee` timelock.
 - Escrow and arbiter release — *planned*.
 - Subscriptions and recurring billing — *planned*.
 - [Merchants](./merchants.md) — registration, activation, verification, configuration, and the state-to-operation matrix.
+- [Merchant account withdrawals, thresholds, and approval requests](./merchant-account-withdrawals.md) — direct vs approval-based withdrawals, `WithdrawalRequest` states, restriction effects (account contract).
 - [Event ticketing, dynamic pricing, and resale](./event-ticketing.md)
+- [Ticket tiers and tiered issuance](./ticket-tiers.md) — `add_tier`, `issue_tiered_ticket`, supply and capacity invariants (standalone `ticketing` contract).
 - [Merchant analytics and transaction history](./analytics-and-history.md)
 - [Auto-withdrawal and merchant settlement](./auto-withdrawal.md)
 - [Payment payloads, swap routing, and the cross-chain bridge placeholder](./payment-payloads-and-routing.md)

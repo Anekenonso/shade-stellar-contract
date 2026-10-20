@@ -46,6 +46,7 @@ fn get_withdrawal_analytics(env: Env, token: Address) -> WithdrawalAnalytics;
 ```
 - `withdraw_to`: Initiates a transfer from the vault to `recipient`. Requires `merchant.require_auth()`. If `amount > withdrawal_threshold`, it triggers a pending `WithdrawalRequest` requiring manager approval.
 - `approve_withdrawal`: Called by `manager` to approve a high-value withdrawal request.
+See [Merchant account withdrawals, thresholds, and approval requests](../concepts/merchant-account-withdrawals.md) for the full flow, state diagram, and restriction effects.
 
 ### 4. Verification & Restriction Controls
 ```rust
