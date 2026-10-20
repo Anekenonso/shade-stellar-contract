@@ -2,6 +2,8 @@
 
 This page documents how value actually moves when a [payer](../glossary.md#payer) settles an [invoice](../glossary.md#invoice): the checks that run before any token transfer, the order transfers happen in, and the guarantees a payer and [merchant](../glossary.md#merchant) get from `pay_invoice`, `pay_invoice_partial`, and `pay_invoices_batch`.
 
+> 📊 **Visual Diagrams:** See the [Payment & Fee Routing Sequence Diagram](../architecture/diagrams.md#2-payment-and-fee-routing-full-payment) and [Partial Payment Sequence Diagram](../architecture/diagrams.md#3-partial-payment-flow) in the Architecture Diagrams guide.
+
 > **Implementation note:** the payment logic described here lives in [`contracts/shade/src/components/invoice.rs`](../../contracts/shade/src/components/invoice.rs) (the `pay_invoice*` family) and [`contracts/shade/src/components/platform_fee.rs`](../../contracts/shade/src/components/platform_fee.rs) (the fee split). `contracts/shade/src/components/payment.rs` is a separate, smaller component that only validates swap-routing payloads (`validate_payment_payload`) — see [Payment payloads, swap routing, and the cross-chain bridge placeholder](./payment-payloads-and-routing.md). It is not where invoice settlement happens.
 
 ## Why it exists

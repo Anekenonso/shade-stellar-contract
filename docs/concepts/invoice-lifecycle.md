@@ -2,6 +2,8 @@
 
 Shade [invoices](../glossary.md#invoice) are payable requests created by a [merchant](../glossary.md#merchant), tracked through the `InvoiceStatus` enum as they move from creation through payment, refund, cancellation, or expiry. This page is the canonical guide to that lifecycle: every creation path, every status, every transition, and how expiry and filtering work.
 
+> 📊 **Visual State Machine:** See the [Invoice Lifecycle State Diagram](../architecture/diagrams.md#1-invoice-status-lifecycle) and [Payment Sequence Diagrams](../architecture/diagrams.md#2-payment-and-fee-routing-full-payment) in the Architecture Diagrams guide.
+
 For the full `Invoice` struct field list and every function signature verbatim, see the [data types reference](../reference/data-types.md) and the [`ShadeTrait` function reference](../reference/shade-interface.md) — this page focuses on the lifecycle narrative and does not duplicate those tables.
 
 ## The `Invoice` struct
