@@ -160,6 +160,7 @@ Run this checklist locally before opening (or re-requesting review on) a PR — 
 - [ ] `make test` (`cargo test --workspace --all-features`) — full workspace suite passes, not just the crate you touched.
 - [ ] **Snapshot check:** `cargo test` generates `test_snapshots/` directories as a side effect (see [Running the test suite § Test snapshots](docs/getting-started/running-tests.md#test-snapshots)). This repository does **not** commit these — confirm `git status` shows no `test_snapshots/` path before staging anything. If one slipped into a previous commit, remove it rather than leaving it in the PR.
 - [ ] **Docs checks:** if the PR adds or changes a page under `docs/`, it satisfies the [Documentation Style Guide's review checklist](docs/contributing/documentation-style-guide.md#review-checklist) (accuracy against code, working links, spell-check, correct template, terminology, style, and index updated). If the PR changes a public interface, it also satisfies [Keeping reference docs in sync](#keeping-reference-docs-in-sync) below.
+- [ ] **Changelog:** if the PR changes anything an integrator or operator could notice, add an entry under `## [Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md), and prefix it `**BREAKING:**` if it matches the [breaking-change criteria](docs/operations/releases.md#breaking-changes-for-integrators).
 - [ ] Commit messages follow the [Commit Guidelines](#commit-guidelines).
 
 ## Pull Request Process
@@ -204,6 +205,7 @@ Before submitting a PR, ensure:
 - [ ] Code is properly formatted (`cargo fmt`)
 - [ ] No clippy warnings (`cargo clippy`)
 - [ ] Documentation is updated (if needed) — see [Keeping reference docs in sync](#keeping-reference-docs-in-sync)
+- [ ] `CHANGELOG.md` is updated (if needed) — see [Releases](docs/operations/releases.md)
 - [ ] Commit messages follow the guidelines
 - [ ] PR description is clear and complete
 

@@ -47,6 +47,14 @@ Fixes #
 - [ ] This PR does not change a public interface, or the change needs no doc update (explain why below if not obvious).
 - [ ] This PR adds/changes a `docs/` page and satisfies the [Documentation Style Guide's review checklist](../docs/contributing/documentation-style-guide.md#review-checklist).
 
+## Changelog
+
+<!-- See docs/operations/releases.md. Add a line under `## [Unreleased]` in CHANGELOG.md for every change an integrator or operator could notice. -->
+
+- [ ] Update CHANGELOG: I added an entry under `## [Unreleased]` in [`CHANGELOG.md`](../CHANGELOG.md), grouped by contract.
+- [ ] This PR is a [breaking change](../docs/operations/releases.md#breaking-changes-for-integrators) (interface signature, event shape, error code, or storage layout), and its changelog entry is prefixed `**BREAKING:**` with migration steps.
+- [ ] This PR needs no changelog entry (internal-only change; explain why below).
+
 ## Checklist
 
 <!-- Mark completed items with an 'x' -->
