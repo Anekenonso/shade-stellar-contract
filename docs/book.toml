@@ -1,0 +1,20 @@
+[book]
+title = "Shade Protocol Documentation"
+authors = ["Shade Protocol contributors"]
+language = "en"
+src = "."
+
+[build]
+build-dir = "../target/book"
+create-missing = false
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[output.html]
+git-repository-url = "https://github.com/ShadeProtocol/shade-stellar-contract"
+edit-url-template = "https://github.com/ShadeProtocol/shade-stellar-contract/edit/main/docs/{path}"
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
+
+[output.html.search]
+enable = true

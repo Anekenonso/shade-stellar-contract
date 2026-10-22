@@ -38,3 +38,7 @@ test_snapshots/
 .stellar/
 
 issue_description.md
+
+# mdBook generated assets
+docs/mermaid.min.js
+docs/mermaid-init.js

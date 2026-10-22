@@ -6,6 +6,7 @@ Deep dives into individual mechanisms, written from the [concept template](../co
 - [Payment flows: full, partial, and batch](./payments.md) — preconditions, fee splitting, rounding, and batch atomicity for `pay_invoice`, `pay_invoice_partial`, and `pay_invoices_batch`.
 - [Escrow](./escrow.md)
 - [Subscriptions and recurring billing](./subscriptions.md)
+- [Time, ledger timestamps, and interval semantics](./time-and-intervals.md) — units, boundary comparisons, the fee time-lock, and testing time-based logic.
 - [Subscription billing authorization and allowances](./subscription-billing-authorization.md) — `authorize_billing`, `get_billing_allowance`, `revoke_billing_authorization`, and how plan price changes affect an existing allowance (standalone `subscription` contract).
 - [Subscription grace periods and past-due handling](./subscription-grace-periods.md) — the `Active`/`PastDue`/`Terminated` state machine, recovery, and event emission (standalone `subscription` contract).
 - [Subscription prorated cancellation refunds](./subscription-prorated-refunds.md) — the proration formula, rounding, authorization, funding source, and quoting (standalone `subscription` contract).

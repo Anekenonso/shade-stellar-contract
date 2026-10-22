@@ -30,7 +30,7 @@ STELLAR_DIR = .stellar
 	deploy-shade deploy-account deploy-all \
 	init-shade \
 	pause-shade unpause-shade upgrade-shade \
-	check-admin check-network
+	check-admin check-network docs docs-serve docs-check
 
 # ============================================================================
 # Default Target
@@ -233,6 +233,23 @@ deploy-testnet: deploy-all ## Deploy all contracts to testnet
 
 deploy-futurenet: NETWORK=futurenet
 deploy-futurenet: deploy-all ## Deploy all contracts to futurenet
+
+docs: ## Build the docs site (mdBook + rustdoc under /api/)
+	@mdbook-mermaid install docs
+	@mdbook build docs
+	@cargo doc --workspace --no-deps
+	@mkdir -p target/book/api
+	@cp -r target/doc/. target/book/api/
+	@echo "Docs built in target/book/"
+
+docs-serve: ## Preview the docs site locally
+	@mdbook-mermaid install docs
+	@mdbook serve docs --open
+
+docs-check: ## Run docs link, lint, and spell checks
+	@lychee --config lychee.toml docs README.md CONTRIBUTING.md
+	@markdownlint-cli2 "docs/**/*.md" README.md CONTRIBUTING.md
+	@typos docs README.md CONTRIBUTING.md
 
 ci: lint test build ## CI pipeline (lint, test, build)
 	@echo "CI pipeline complete!"
