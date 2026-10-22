@@ -6,6 +6,7 @@ Runbooks for protocol operators, written from the [runbook template](../contribu
 - [Contract Upgrade Runbook](upgrade-runbook.md) — pre-flight, execution, verification, and rollback for upgrading a deployed `shade` contract.
 - [Admin Operations and Incident Response Runbook](admin-runbook.md) — routine admin operations (fees, tokens, merchants, roles, platform account) and incident response.
 - [Billing Keeper Operator Guide](billing-keeper.md) — running the off-chain keeper that calls `charge`/`process_charge`/`process_billing_cycle` on the standalone `subscription` contract: entry points, `ChargeOutcome` handling, scheduling, idempotency, and monitoring.
+- [Releases Runbook](releases.md) — versioning, tagging, building reproducible WASMs, recording hashes, writing release notes, publishing a GitHub Release, and the criteria for a breaking change.
 - Rotating the admin key (two-step transfer) — see [Admin Runbook § Role management](admin-runbook.md#admin-transfer).
 - Pausing and unpausing the Shade contract — see [Admin Runbook § Pause procedure](admin-runbook.md#pause-procedure) and [Admin Runbook § Unpause criteria](admin-runbook.md#unpause-criteria).
 - Proposing and voting on a contract upgrade — see [Upgrade Runbook § Execution](upgrade-runbook.md#execution) (governance path).
