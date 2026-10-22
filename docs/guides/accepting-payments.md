@@ -8,6 +8,8 @@ How to take a payer from an existing [invoice](../glossary.md#invoice) through t
 - An invoice already created by the merchant (`create_invoice`, `create_fiat_invoice`, or a finalized draft) — this guide starts from "an invoice ID exists," not invoice creation.
 - A funded Stellar account for the payer, and familiarity with the Soroban RPC request lifecycle (simulate → sign → submit) — see [Building the Contracts](../getting-started/building.md) and [Prerequisites](../getting-started/prerequisites.md) if you haven't set up tooling yet.
 
+> **Note:** For the browser side of this flow — connecting a wallet, signing, and handling trustline and network errors — see the [Wallet integration guide](wallet-integration.md).
+
 ## The end-to-end flow
 
 ```mermaid

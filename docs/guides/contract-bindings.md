@@ -105,6 +105,8 @@ const sent = await tx.signAndSend({
 console.log(sent.result);
 ```
 
+For a complete browser-wallet implementation of this flow — Freighter, Stellar Wallets Kit, pre-flight checks, and error mapping — see the [Wallet integration guide](wallet-integration.md).
+
 Every generated write method (`add_token`, `pay_invoice`, `register_merchant`, etc.) follows this same three-step shape: call the method to get an `AssembledTransaction` (this simulates the call against the RPC and reports the would-be result before you sign anything), call `.signAndSend({ signTransaction })` to sign and submit it, then read `.result`. Read-only methods (`get_invoice`, `is_paused`, …) resolve immediately with `{ result }` from simulation and never need signing.
 
 > **Note:** The generated client has no built-in wallet or signer. `signAndSend` takes a `signTransaction` callback you provide — from a browser wallet's signing API, a `Keypair.sign` call against a secret key held server-side in a secret manager, or a hardware-signing integration. Never inline a secret key in application source, and never commit one to a repository.
