@@ -1,0 +1,18 @@
+[files]
+extend-exclude = ["target/", "Cargo.lock", "*.wasm", "test_snapshots/"]
+
+[default]
+extend-ignore-re = [
+  "G[A-Z2-7]{55}",
+  "C[A-Z2-7]{55}",
+]
+
+[default.extend-words]
+soroban = "soroban"
+stellar = "stellar"
+stroops = "stroops"
+stroop = "stroop"
+wasm = "wasm"
+rustdoc = "rustdoc"
+mdbook = "mdbook"
+lychee = "lychee"

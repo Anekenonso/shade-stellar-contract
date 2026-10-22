@@ -183,6 +183,14 @@ If your PR adds or changes a page under `docs/`, follow the [Documentation Style
 
 For a deeper understanding of how the pieces you're documenting fit together before you write about them, read the [Architecture overview](docs/architecture/overview.md) and the [testing guide](docs/getting-started/running-tests.md) — a docs PR that misdescribes a cross-contract call or a test convention is harder to catch in review than one that's simply incomplete.
 
+### Architecture Decision Records
+
+A PR that makes a significant design decision (new or restructured contract, factory, or component; storage, upgrade, or cross-contract call changes; privileged admin/fee flows; new dependencies; or reversing a past decision) must add an ADR under [`docs/architecture/decisions/`](docs/architecture/decisions/README.md) using the [template](docs/architecture/decisions/template.md), and add it to the index.
+
+### Docs site and quality checks
+
+Preview the docs site locally with `make docs-serve` (or `mdbook serve docs`) and build it with `make docs`. Docs PRs run link, markdown lint, and spell checks in CI; see [Docs tooling](docs/contributing/docs-tooling.md) for how to run them locally and add dictionary words.
+
 ### Keeping reference docs in sync
 
 A PR changing a **public interface** must update the matching reference docs in the same PR — "public interface" means any of the following:
