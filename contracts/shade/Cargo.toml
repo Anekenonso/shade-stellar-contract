@@ -9,10 +9,10 @@ crate-type = ["lib", "cdylib"]
 doctest = false
 
 [dependencies]
-account = { path = "../account" }
 soroban-sdk = { workspace = true }
 
 [dev-dependencies]
+account = { path = "../account" }
 soroban-sdk = { workspace = true, features = ["testutils"] }
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 rand = "0.8"

@@ -1,7 +1,7 @@
 use crate::components::merchant;
 use crate::errors::ContractError;
 use crate::events;
-use crate::types::{AutoWithdrawalThreshold, DataKey, Merchant};
+use crate::types::AutoWithdrawalThreshold;
 use soroban_sdk::{panic_with_error, token, Address, Env, Vec};
 
 /// Set auto-withdrawal threshold for a merchant and token
@@ -46,7 +46,7 @@ pub fn set_auto_withdrawal_threshold(
     }
     merchant.auto_withdrawal_thresholds = updated;
 
-    save_merchant(env, merchant_id, &merchant);
+    merchant::save_merchant(env, &merchant);
 
     events::publish_auto_withdrawal_threshold_set_event(env, merchant_id, token.clone(), threshold);
 }
@@ -74,7 +74,7 @@ pub fn set_auto_withdrawal_recipient(env: &Env, merchant_address: &Address, reci
     }
 
     merchant.auto_withdrawal_recipient = Some(recipient.clone());
-    save_merchant(env, merchant_id, &merchant);
+    merchant::save_merchant(env, &merchant);
 
     events::publish_auto_withdrawal_recipient_set_event(env, merchant_id, recipient.clone());
 }
@@ -82,12 +82,6 @@ pub fn set_auto_withdrawal_recipient(env: &Env, merchant_address: &Address, reci
 /// Get auto-withdrawal recipient for a merchant
 pub fn get_auto_withdrawal_recipient(env: &Env, merchant_id: u64) -> Option<Address> {
     merchant::get_merchant(env, merchant_id).auto_withdrawal_recipient
-}
-
-fn save_merchant(env: &Env, merchant_id: u64, merchant: &Merchant) {
-    env.storage()
-        .persistent()
-        .set(&DataKey::Merchant(merchant_id), merchant);
 }
 
 /// Check and trigger auto-withdrawal if balance exceeds threshold

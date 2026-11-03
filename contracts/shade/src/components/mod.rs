@@ -1,6 +1,7 @@
 pub mod access_control;
 pub mod account_factory;
 pub mod admin;
+pub mod analytics;
 pub mod auto_withdrawal;
 pub mod core;
 pub mod history;

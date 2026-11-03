@@ -127,7 +127,7 @@ pub fn release_escrow(env: &Env, buyer: &Address, escrow_id: u64) {
     let contract_address = env.current_contract_address();
 
     let amount = escrow.amount;
-    let fee = admin::calculate_fee(env, &escrow.seller, &escrow.token, amount);
+    let fee = shade::components::platform_fee::calculate_fee(env, &escrow.seller, &escrow.token, amount);
     let merchant_amount = amount - fee;
 
     if merchant_amount > 0 {
@@ -139,7 +139,7 @@ pub fn release_escrow(env: &Env, buyer: &Address, escrow_id: u64) {
         token_client.transfer(&contract_address, &platform_account, &fee);
     }
 
-    admin::record_merchant_payment(env, &escrow.seller, &escrow.token, amount, fee);
+    shade::components::analytics::record_merchant_payment(env, &escrow.seller, &escrow.token, amount, fee);
 
     escrow.status = EscrowStatus::Released;
     escrow.date_released = Option::Some(env.ledger().timestamp());

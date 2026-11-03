@@ -51,7 +51,7 @@ pub fn create_subscription_plan(
         panic_with_error!(env, shade::errors::ContractError::TokenNotAccepted);
     }
 
-    let fee_amount = admin::calculate_fee(env, &merchant, &token, amount);
+    let fee_amount = shade::components::platform_fee::calculate_fee(env, &merchant, &token, amount);
     if amount < fee_amount {
         panic_with_error!(env, shade::errors::ContractError::InvalidAmount);
     }

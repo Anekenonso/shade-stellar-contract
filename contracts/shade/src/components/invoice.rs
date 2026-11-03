@@ -110,7 +110,7 @@ pub fn validate_invoice_creation(
     }
     // check if amount is less than fee amount for the token
     let merchant_address_val: Address = merchant_address.clone();
-    let fee_amount = admin::calculate_fee(env, &merchant_address_val, token, amount);
+    let fee_amount = platform_fee::calculate_fee(env, &merchant_address_val, token, amount);
     if amount <= fee_amount {
         panic_with_error!(env, ContractError::InvalidAmount);
     }
@@ -532,12 +532,8 @@ pub fn get_invoices(env: &Env, filter: InvoiceFilter) -> Vec<Invoice> {
                     matches = false;
                 }
             }
-            if let Some(merchant) = &filter.merchant {
-                if let Some(merchant_id) = env
-                    .storage()
-                    .persistent()
-                    .get::<_, u64>(&DataKey::MerchantId(merchant.clone()))
-                {
+            if let Some(merchant_address) = &filter.merchant {
+                if let Some(merchant_id) = merchant::find_merchant_id(env, merchant_address) {
                     if invoice.merchant_id != merchant_id {
                         matches = false;
                     }
@@ -720,7 +716,7 @@ fn pay_invoice_partial_inner(env: &Env, payer: &Address, invoice_id: u64, amount
         panic_with_error!(env, ContractError::TokenNotAccepted);
     }
 
-    let merchant_address: Address = merchant_id_to_address(env, invoice.merchant_id);
+    let merchant_address = merchant::get_merchant(env, invoice.merchant_id).address;
     let merchant_account_id = merchant::get_merchant_account(env, invoice.merchant_id);
     let split = platform_fee::route_from_payer(
         env,
@@ -803,10 +799,7 @@ pub fn void_invoice(env: &Env, merchant_address: &Address, invoice_id: u64) {
 
     let mut invoice = get_invoice(env, invoice_id);
 
-    let merchant_id: u64 = env
-        .storage()
-        .persistent()
-        .get(&DataKey::MerchantId(merchant_address.clone()))
+    let merchant_id = merchant::find_merchant_id(env, merchant_address)
         .unwrap_or_else(|| panic_with_error!(env, ContractError::NotAuthorized));
 
     if invoice.merchant_id != merchant_id {
@@ -842,10 +835,7 @@ pub fn amend_invoice(
 
     let mut invoice = get_invoice(env, invoice_id);
 
-    let merchant_id: u64 = env
-        .storage()
-        .persistent()
-        .get(&DataKey::MerchantId(merchant_address.clone()))
+    let merchant_id = merchant::find_merchant_id(env, merchant_address)
         .unwrap_or_else(|| panic_with_error!(env, ContractError::NotAuthorized));
 
     if invoice.merchant_id != merchant_id {
@@ -948,13 +938,4 @@ pub fn claim_refund(env: &Env, buyer: &Address, invoice_id: u64) {
         invoice.token.clone(),
         env.ledger().timestamp(),
     );
-}
-
-fn merchant_id_to_address(env: &Env, merchant_id: u64) -> Address {
-    let merchant_data: crate::types::Merchant = env
-        .storage()
-        .persistent()
-        .get(&crate::types::DataKey::Merchant(merchant_id))
-        .unwrap_or_else(|| panic_with_error!(env, ContractError::MerchantNotFound));
-    merchant_data.address
 }

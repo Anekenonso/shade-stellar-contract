@@ -105,6 +105,12 @@ pub fn get_merchant_id(env: &Env, merchant: &Address) -> u64 {
         .unwrap_or_else(|| panic_with_error!(env, ContractError::MerchantNotFound))
 }
 
+pub fn save_merchant(env: &Env, merchant: &Merchant) {
+    env.storage()
+        .persistent()
+        .set(&DataKey::Merchant(merchant.id), merchant);
+}
+
 pub fn is_merchant(env: &Env, merchant: &Address) -> bool {
     env.storage()
         .persistent()

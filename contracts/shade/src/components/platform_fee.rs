@@ -1,10 +1,11 @@
-use crate::components::{access_control, admin, merchant, reentrancy};
+use crate::components::{access_control, admin, analytics, core, merchant, reentrancy};
 use crate::errors::ContractError;
 use crate::events;
-use crate::types::{DataKey, PlatformFeeRouteKind, PlatformFeeSplit, Role};
+use crate::types::{DataKey, PendingFee, PlatformFeeRouteKind, PlatformFeeSplit, Role};
 use soroban_sdk::{panic_with_error, token, Address, Env};
 
 const MAX_FEE_BPS: i128 = 10_000;
+pub const FEE_UPDATE_DELAY: u64 = 172_800; // 48 hours in seconds
 
 fn assert_fee_operator(env: &Env, caller: &Address) {
     caller.require_auth();
@@ -34,9 +35,12 @@ fn apply_volume_discount(fee_bps: i128, volume: i128) -> i128 {
 }
 
 pub fn effective_fee_bps(env: &Env, merchant_id: u64, merchant: &Address, token: &Address) -> i128 {
-    let base_bps = get_merchant_platform_fee_bps(env, merchant_id, token)
-        .unwrap_or_else(|| admin::get_fee(env, token));
-    apply_volume_discount(base_bps, admin::get_merchant_volume(env, merchant, token))
+    let base_bps =
+        get_merchant_platform_fee(env, merchant_id, token).unwrap_or_else(|| get_fee(env, token));
+    apply_volume_discount(
+        base_bps,
+        analytics::get_merchant_volume(env, merchant, token),
+    )
 }
 
 pub fn compute_split(
@@ -159,7 +163,7 @@ fn finalize_route(
     merchant_id: u64,
     payer: &Address,
 ) {
-    admin::record_merchant_payment(env, merchant, token, gross_amount, split.platform_fee);
+    analytics::record_merchant_payment(env, merchant, token, gross_amount, split.platform_fee);
 
     let platform_account = admin::get_platform_account(env);
     let merchant_account = merchant::get_merchant_account(env, merchant_id);
@@ -200,8 +204,7 @@ pub fn set_merchant_platform_fee(
         panic_with_error!(env, ContractError::TokenNotAccepted);
     }
 
-    let merchant_record = merchant::get_merchant(env, merchant_id);
-    let _ = merchant_record;
+    let _ = merchant::get_merchant(env, merchant_id);
 
     env.storage().persistent().set(
         &DataKey::MerchantPlatformFee(merchant_id, token.clone()),
@@ -225,10 +228,6 @@ pub fn get_merchant_platform_fee(env: &Env, merchant_id: u64, token: &Address) -
         .get(&DataKey::MerchantPlatformFee(merchant_id, token.clone()))
 }
 
-fn get_merchant_platform_fee_bps(env: &Env, merchant_id: u64, token: &Address) -> Option<i128> {
-    get_merchant_platform_fee(env, merchant_id, token)
-}
-
 pub fn clear_merchant_platform_fee(env: &Env, caller: &Address, merchant_id: u64, token: &Address) {
     reentrancy::enter(env);
     assert_fee_operator(env, caller);
@@ -247,4 +246,120 @@ pub fn clear_merchant_platform_fee(env: &Env, caller: &Address, merchant_id: u64
         env.ledger().timestamp(),
     );
     reentrancy::exit(env);
+}
+
+pub fn set_fee(env: &Env, admin: &Address, token: &Address, fee: i128) {
+    reentrancy::enter(env);
+    core::assert_admin(env, admin);
+
+    if !admin::is_accepted_token(env, token) {
+        panic_with_error!(env, ContractError::TokenNotAccepted);
+    }
+
+    env.storage()
+        .persistent()
+        .set(&DataKey::TokenFee(token.clone()), &fee);
+
+    events::publish_fee_set_event(
+        env,
+        admin.clone(),
+        token.clone(),
+        fee,
+        env.ledger().timestamp(),
+    );
+    reentrancy::exit(env);
+}
+
+pub fn get_fee(env: &Env, token: &Address) -> i128 {
+    env.storage()
+        .persistent()
+        .get(&DataKey::TokenFee(token.clone()))
+        .unwrap_or(0)
+}
+
+/// The platform fee that *would* apply to `amount` for this merchant/token.
+///
+/// This is a pure query: unlike `platform_fee::compute_split` (the payment
+/// path) it never panics. A non-positive amount yields 0, and an address that
+/// is not a registered merchant is priced at the token's default fee rather
+/// than rejected.
+pub fn calculate_fee(env: &Env, merchant: &Address, token: &Address, amount: i128) -> i128 {
+    if amount <= 0 {
+        return 0;
+    }
+    let merchant_id = merchant::find_merchant_id(env, merchant).unwrap_or(0);
+    let fee_bps = effective_fee_bps(env, merchant_id, merchant, token);
+    if fee_bps == 0 {
+        0
+    } else {
+        (amount * fee_bps) / 10_000i128
+    }
+}
+
+pub fn propose_fee(env: &Env, admin: &Address, token: &Address, fee: i128) {
+    reentrancy::enter(env);
+    core::assert_admin(env, admin);
+
+    if !admin::is_accepted_token(env, token) {
+        panic_with_error!(env, ContractError::TokenNotAccepted);
+    }
+
+    let pending = PendingFee {
+        token: token.clone(),
+        fee,
+        proposed_at: env.ledger().timestamp(),
+    };
+
+    env.storage()
+        .persistent()
+        .set(&DataKey::PendingTokenFee(token.clone()), &pending);
+
+    events::publish_fee_proposed_event(
+        env,
+        admin.clone(),
+        token.clone(),
+        fee,
+        env.ledger().timestamp(),
+    );
+    reentrancy::exit(env);
+}
+
+pub fn execute_fee(env: &Env, admin: &Address, token: &Address) {
+    reentrancy::enter(env);
+    core::assert_admin(env, admin);
+
+    let pending: PendingFee = env
+        .storage()
+        .persistent()
+        .get(&DataKey::PendingTokenFee(token.clone()))
+        .unwrap_or_else(|| panic_with_error!(env, ContractError::NoPendingFeeUpdate));
+
+    let elapsed = env.ledger().timestamp() - pending.proposed_at;
+    if elapsed < FEE_UPDATE_DELAY {
+        panic_with_error!(env, ContractError::FeeUpdateTooEarly);
+    }
+
+    env.storage()
+        .persistent()
+        .set(&DataKey::TokenFee(token.clone()), &pending.fee);
+
+    env.storage()
+        .persistent()
+        .remove(&DataKey::PendingTokenFee(token.clone()));
+
+    events::publish_fee_set_event(
+        env,
+        admin.clone(),
+        token.clone(),
+        pending.fee,
+        env.ledger().timestamp(),
+    );
+    reentrancy::exit(env);
+}
+
+pub fn get_pending_fee(env: &Env, token: &Address) -> PendingFee {
+    env.storage()
+        .persistent()
+        .get(&DataKey::PendingTokenFee(token.clone()))
+        .unwrap_or_else(|| panic_with_error!(env, ContractError::NoPendingFeeUpdate))
 }

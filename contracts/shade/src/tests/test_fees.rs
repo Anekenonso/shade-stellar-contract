@@ -1,4 +1,4 @@
-use crate::components::admin as admin_component;
+use crate::components::platform_fee as platform_fee_component;
 use crate::errors::ContractError;
 use crate::shade::Shade;
 use crate::shade::ShadeClient;
@@ -65,7 +65,7 @@ fn test_set_fee_success() {
     let expected_timestamp = env.ledger().timestamp();
 
     env.as_contract(&contract_id, || {
-        admin_component::set_fee(&env, &admin, &token, fee);
+        platform_fee_component::set_fee(&env, &admin, &token, fee);
         assert_fee_set_event(&env, &contract_id, &token, fee, expected_timestamp);
     });
 

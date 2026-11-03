@@ -1301,7 +1301,6 @@ dependencies = [
 name = "shade"
 version = "0.0.0"
 dependencies = [
- "account",
  "soroban-sdk",
 ]
 

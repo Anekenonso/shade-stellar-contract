@@ -221,10 +221,3 @@ fn merchant_matches(m: &Merchant, filter: &MerchantFilter) -> bool {
 // ── Withdrawal proposal search ────────────────────────────────────────────────
 
 // ── Convenience: merchant ID lookup ──────────────────────────────────────────
-
-/// Look up a merchant ID from an address, returning `None` if not registered.
-pub fn find_merchant_id(env: &Env, address: &Address) -> Option<u64> {
-    env.storage()
-        .persistent()
-        .get::<_, u64>(&DataKey::MerchantId(address.clone()))
-}

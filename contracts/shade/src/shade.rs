@@ -1,19 +1,18 @@
 use crate::components::{
     access_control as access_control_component, admin as admin_component,
-    auto_withdrawal as auto_withdrawal_component, core as core_component,
-    history as history_component, invoice as invoice_component, merchant as merchant_component,
-    pausable as pausable_component, platform_fee as platform_fee_component,
-    search as search_component, upgrade as upgrade_component,
+    analytics as analytics_component, auto_withdrawal as auto_withdrawal_component,
+    core as core_component, history as history_component, invoice as invoice_component,
+    merchant as merchant_component, pausable as pausable_component,
+    platform_fee as platform_fee_component, search as search_component,
+    upgrade as upgrade_component,
 };
-use crate::errors::ContractError;
-use crate::events;
 use crate::shade_interface::ShadeTrait;
 use crate::types::{
-    ContractInfo, DataKey, Invoice, InvoiceFilter, InvoicePage, Merchant, MerchantAnalytics,
-    MerchantAnalyticsSummary, MerchantFilter, MerchantPage, OracleConfig, PendingFee,
-    PlatformFeeSplit, Role, TokenAnalytics, Transaction,
+    Invoice, InvoiceFilter, InvoicePage, Merchant, MerchantAnalytics, MerchantAnalyticsSummary,
+    MerchantFilter, MerchantPage, OracleConfig, PendingFee, PlatformFeeSplit, Role, TokenAnalytics,
+    Transaction,
 };
-use soroban_sdk::{contract, contractimpl, panic_with_error, Address, BytesN, Env, String, Vec};
+use soroban_sdk::{contract, contractimpl, Address, BytesN, Env, String, Vec};
 
 #[contract]
 pub struct Shade;
@@ -21,21 +20,7 @@ pub struct Shade;
 #[contractimpl]
 impl ShadeTrait for Shade {
     fn initialize(env: Env, admin: Address) {
-        if env.storage().persistent().has(&DataKey::Admin) {
-            panic_with_error!(&env, ContractError::AlreadyInitialized);
-        }
-        let contract_info = ContractInfo {
-            admin: admin.clone(),
-            timestamp: env.ledger().timestamp(),
-        };
-        env.storage().persistent().set(&DataKey::Admin, &admin);
-        env.storage()
-            .persistent()
-            .set(&DataKey::PlatformAccount, &admin);
-        env.storage()
-            .persistent()
-            .set(&DataKey::ContractInfo, &contract_info);
-        events::publish_initialized_event(&env, admin, env.ledger().timestamp());
+        core_component::initialize(&env, &admin);
     }
 
     fn get_admin(env: Env) -> Address {
@@ -67,11 +52,11 @@ impl ShadeTrait for Shade {
 
     fn set_fee(env: Env, admin: Address, token: Address, fee: i128) {
         pausable_component::assert_not_paused(&env);
-        admin_component::set_fee(&env, &admin, &token, fee);
+        platform_fee_component::set_fee(&env, &admin, &token, fee);
     }
 
     fn get_fee(env: Env, token: Address) -> i128 {
-        admin_component::get_fee(&env, &token)
+        platform_fee_component::get_fee(&env, &token)
     }
 
     fn set_platform_account(env: Env, admin: Address, account: Address) {
@@ -94,16 +79,16 @@ impl ShadeTrait for Shade {
 
     fn propose_fee(env: Env, admin: Address, token: Address, fee: i128) {
         pausable_component::assert_not_paused(&env);
-        admin_component::propose_fee(&env, &admin, &token, fee);
+        platform_fee_component::propose_fee(&env, &admin, &token, fee);
     }
 
     fn execute_fee(env: Env, admin: Address, token: Address) {
         pausable_component::assert_not_paused(&env);
-        admin_component::execute_fee(&env, &admin, &token);
+        platform_fee_component::execute_fee(&env, &admin, &token);
     }
 
     fn get_pending_fee(env: Env, token: Address) -> PendingFee {
-        admin_component::get_pending_fee(&env, &token)
+        platform_fee_component::get_pending_fee(&env, &token)
     }
 
     fn register_merchant(env: Env, merchant: Address) {
@@ -295,7 +280,7 @@ impl ShadeTrait for Shade {
     }
 
     fn calculate_fee(env: Env, merchant: Address, token: Address, amount: i128) -> i128 {
-        admin_component::calculate_fee(&env, &merchant, &token, amount)
+        platform_fee_component::calculate_fee(&env, &merchant, &token, amount)
     }
 
     fn compute_platform_fee_split(
@@ -334,15 +319,15 @@ impl ShadeTrait for Shade {
     }
 
     fn get_merchant_volume(env: Env, merchant: Address, token: Address) -> i128 {
-        admin_component::get_merchant_volume(&env, &merchant, &token)
+        analytics_component::get_merchant_volume(&env, &merchant, &token)
     }
 
     fn get_merchant_analytics(env: Env, merchant: Address, token: Address) -> MerchantAnalytics {
-        admin_component::get_merchant_analytics(&env, &merchant, &token)
+        analytics_component::get_merchant_analytics(&env, &merchant, &token)
     }
 
     fn get_merchant_analytics_summary(env: Env, merchant: Address) -> MerchantAnalyticsSummary {
-        admin_component::get_merchant_analytics_summary(&env, &merchant)
+        analytics_component::get_merchant_analytics_summary(&env, &merchant)
     }
 
     fn set_merchant_account(env: Env, merchant: Address, account: Address) {
@@ -448,23 +433,23 @@ impl ShadeTrait for Shade {
     }
 
     fn get_token_analytics(env: Env, token: Address) -> TokenAnalytics {
-        admin_component::get_token_analytics(&env, &token)
+        analytics_component::get_token_analytics(&env, &token)
     }
 
     fn get_token_volume(env: Env, token: Address) -> i128 {
-        admin_component::get_token_volume(&env, &token)
+        analytics_component::get_token_volume(&env, &token)
     }
 
     fn get_token_dominance_metrics(env: Env, tokens: Vec<Address>) -> Vec<(Address, i128)> {
-        admin_component::get_token_dominance_metrics(&env, &tokens)
+        analytics_component::get_token_dominance_metrics(&env, &tokens)
     }
 
     fn get_top_tokens_by_volume(env: Env, limit: u32) -> Vec<(Address, i128)> {
-        admin_component::get_top_tokens_by_volume(&env, limit)
+        analytics_component::get_top_tokens_by_volume(&env, limit)
     }
 
     fn get_token_market_share(env: Env, token: Address) -> i128 {
-        admin_component::get_token_market_share(&env, &token)
+        analytics_component::get_token_market_share(&env, &token)
     }
 
     // ── On-chain search and filtering utilities ───────────────────────
@@ -489,6 +474,6 @@ impl ShadeTrait for Shade {
     }
 
     fn find_merchant_id(env: Env, address: Address) -> u64 {
-        search_component::find_merchant_id(&env, &address).unwrap_or(0)
+        merchant_component::find_merchant_id(&env, &address).unwrap_or(0)
     }
 }

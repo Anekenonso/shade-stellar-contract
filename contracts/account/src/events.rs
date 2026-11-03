@@ -36,9 +36,6 @@ pub struct AccountVerifiedEvent {
     pub timestamp: u64,
 }
 
-/// Alias used by tests.
-pub type AccountVerified = AccountVerifiedEvent;
-
 pub fn publish_account_verified_event(env: &Env, timestamp: u64) {
     (AccountVerifiedEvent { timestamp }).publish(env);
 }
