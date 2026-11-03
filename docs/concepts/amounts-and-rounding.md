@@ -68,25 +68,21 @@ All Shade arithmetic is integer arithmetic on `i128`. Division truncates toward 
 | Fiat goal: fiat to tokens | token base units | same inputs, ceiling division | **Up** | Contributor overpays by under 1 base unit |
 | Fiat goal: tokens to fiat | fiat minor units | `tokens * price * 10^fiat_dec / (10^token_dec * 10^price_dec)` | Down | Contributor |
 | Partial invoice refund | base units | caller supplies `amount` | None | Not applicable |
-| Dynamic ticket price, early bird | base units | `base - floor(base * discount_bps / 10_000)` | Price rounds **up** | Organizer |
-| Dynamic ticket price, late markup | base units | `base + floor(base * markup_bps / 10_000)` | Markup rounds down | Buyer |
-| Bulk ticket group discount | base units | `gross - floor(gross * discount_bps / 10_000)` | Total rounds **up** | Merchant |
 | Resale royalty | base units | `floor(price * royalty_bps / 10_000)`, seller gets `price - royalty` | Royalty down | Seller |
-| Prorated subscription refund (standalone) | base units | `amount * remaining_seconds / interval` | Down | Merchant or `creator` |
 | Upgrade cost (standalone) | base units | `new_amount - prorated_refund(old)`, floored at 0 | Refund down, so cost up | Merchant or `creator` |
 | Token market share | basis points | `token_volume * 10_000 / total_volume` | Down | Not distributed |
 
 ### Fees
 
-`set_fee(env, admin, token, fee)` and `propose_fee`/`execute_fee` store the fee in **basis points** as `i128`. `300` is 3%, and `10_000` is 100%. The amount is computed by `calculate_fee` in [`contracts/shade/src/components/admin.rs#L195-L206`](../../contracts/shade/src/components/admin.rs#L195-L206):
+`set_fee(env, admin, token, fee)` and `propose_fee`/`execute_fee` store the fee in **basis points** as `i128`. `300` is 3%, and `10_000` is 100%. The amount is computed by `calculate_fee` in [`contracts/shade/src/components/admin.rs#L195-L206`](../../contracts/shade/src/components/admin.rs):
 
 ```
 fee = amount * fee_bps / 10_000     // floor
 ```
 
-A non-positive `amount` returns `0`. The payment path in [`platform_fee.rs#L42-L70`](../../contracts/shade/src/components/platform_fee.rs#L42-L70) panics with `InvalidAmount` instead, and also panics if `fee >= amount`. Invoice creation rejects any invoice where `amount <= fee`.
+A non-positive `amount` returns `0`. The payment path in [`platform_fee.rs#L42-L70`](../../contracts/shade/src/components/platform_fee.rs) panics with `InvalidAmount` instead, and also panics if `fee >= amount`. Invoice creation rejects any invoice where `amount <= fee`.
 
-Resolution order, discount tiers, and worked examples are in [Fees](./fees.md).
+Resolution order, discount tiers, and worked examples are in [Fees](fees.md).
 
 > **Warning:** The volume discount thresholds are raw base units of gross volume per merchant and token: `10_000`, `50_000`, and `200_000`. For a 7-decimal token, `10_000` is only 0.001 of a display unit, so the first tier is reached almost immediately. For a 0-decimal token it is 10,000 whole units.
 
@@ -94,7 +90,7 @@ Resolution order, discount tiers, and worked examples are in [Fees](./fees.md).
 
 ### Fiat conversion and oracle decimals
 
-`resolve_fiat_invoice_amount` in [`contracts/shade/src/components/invoice.rs#L33-L57`](../../contracts/shade/src/components/invoice.rs#L33-L57) converts a fiat price to token base units with three decimal settings:
+`resolve_fiat_invoice_amount` in [`contracts/shade/src/components/invoice.rs#L33-L57`](../../contracts/shade/src/components/invoice.rs) converts a fiat price to token base units with three decimal settings:
 
 | Value | Meaning | Set by |
 |---|---|---|
@@ -107,11 +103,9 @@ token_base_units = fiat_amount * 10^token_decimals * 10^price_decimals
                    / (price * 10^fiat_decimals)
 ```
 
-The result floors, and a result of `0` or a non-positive `price` panics with `OraclePriceUnavailable`. The quote refreshes on each payment only while `amount_paid == 0`. After the first payment the stored `amount` is frozen. See [Fiat pricing and oracles](./fiat-pricing-and-oracles.md) for staleness and downtime behavior.
+The result floors, and a result of `0` or a non-positive `price` panics with `OraclePriceUnavailable`. The quote refreshes on each payment only while `amount_paid == 0`. After the first payment the stored `amount` is frozen. See [Fiat pricing and oracles](fiat-pricing-and-oracles.md) for staleness and downtime behavior.
 
 > **Warning:** `token_decimals` in `OracleConfig` is configured by the admin, not read from the token. A wrong value silently scales every quote by a power of ten. Verify it against `decimals()` when you register an oracle.
-
-The fiat-goal component in [`fiat_goals.rs#L74-L153`](../../contracts/shade/src/components/fiat_goals.rs#L74-L153) uses the same inputs but rounds fiat-to-token **up** so a contribution always covers the fiat target, and caps `fiat_decimals` at 18. Its multiplications are checked and fail with a contract error.
 
 ### Partial payments
 
@@ -132,11 +126,9 @@ Refunds come out of the merchant account balance. No code path returns the platf
 
 A payment split into `platform_fee` and `merchant_amount` always satisfies `platform_fee + merchant_amount == amount`. Nothing is created or lost, and the floor puts the remainder on the merchant side.
 
-The standalone `subscription` contract prorates with `amount * remaining / interval`, using `checked_mul` and returning `0` on overflow. See [Subscription contract reference](../contracts/subscription.md#refunds). The party paying the refund never owes a fractional unit, because the result floors.
-
 ## InvoiceFilter bounds are `u128`
 
-`InvoiceFilter.min_amount` and `max_amount` are `Option<u128>`, while `Invoice.amount` is `i128` ([`types.rs#L398-L431`](../../contracts/shade/src/types.rs#L398-L431)). The filter code casts the bounds with `as i128` before comparing ([`invoice.rs#L548-L557`](../../contracts/shade/src/components/invoice.rs#L548-L557), [`search.rs#L117-L125`](../../contracts/shade/src/components/search.rs#L117-L125)).
+`InvoiceFilter.min_amount` and `max_amount` are `Option<u128>`, while `Invoice.amount` is `i128` ([`types.rs#L398-L431`](../../contracts/shade/src/types.rs)). The filter code casts the bounds with `as i128` before comparing ([`invoice.rs#L548-L557`](../../contracts/shade/src/components/invoice.rs), [`search.rs#L117-L125`](../../contracts/shade/src/components/search.rs)).
 
 - A valid invoice amount is always positive, because creation rejects `amount <= 0`. An unsigned bound can only express meaningful values, and a caller cannot pass a negative bound.
 - The source records no other rationale for the unsigned type.
@@ -147,9 +139,7 @@ The standalone `subscription` contract prorates with `amount * remaining / inter
 | Protection | Where |
 |---|---|
 | Release builds trap on integer overflow instead of wrapping | `overflow-checks = true` in [`Cargo.toml#L10-L12`](../../Cargo.toml#L10-L12) |
-| `checked_mul` before dividing by 10,000 | `bps_of` in [`event.rs#L424-L429`](../../contracts/shade/src/components/event.rs#L424-L429), and the fiat-goal `mul` |
-| `saturating_add` and `saturating_mul` on counters and totals | Ticket sales, subscription timing, pledge totals |
-| Positive-amount checks | Invoice creation, `pay_invoice_partial`, `refund_invoice_partial`, `compute_split`, subscription plan creation, resale price, and `create_fiat_invoice` |
+| Positive-amount checks | Invoice creation, `pay_invoice_partial`, `refund_invoice_partial`, `compute_split`, and `create_fiat_invoice` |
 | Fee must leave something for the merchant | Invoice creation (`amount > fee`), `compute_split` (`fee < amount`) |
 
 > **Note:** Plain `*` in `resolve_fiat_invoice_amount` traps on overflow with no contract error code, because `overflow-checks` is on. Keep fiat amounts and decimals within `i128` range after scaling.
@@ -189,7 +179,7 @@ fn fiat_to_token_floor(
     Some(num / den)
 }
 
-/// Prorated amount, floor. Matches the standalone subscription refund.
+/// Prorated amount, floor.
 fn prorate_floor(amount: i128, remaining: u64, interval: u64) -> Option<i128> {
     if interval == 0 { return Some(0); }
     amount.checked_mul(remaining as i128).map(|v| v / interval as i128)
@@ -234,9 +224,8 @@ Use `fromBaseUnits` only for display. Send `bigint` values to the contract as `i
 
 ## Related pages
 
-- [Fees, volume discounts, and time-locked fee changes](./fees.md)
-- [Payment flows: full, partial, and batch](./payments.md)
-- [Fiat pricing and oracles](./fiat-pricing-and-oracles.md)
-- [Refunds and voids](./refunds-and-voids.md)
-- [Token analytics and market share metrics](./token-analytics.md)
-- [Subscription contract reference](../contracts/subscription.md)
+- [Fees, volume discounts, and time-locked fee changes](fees.md)
+- [Payment flows: full, partial, and batch](payments.md)
+- [Fiat pricing and oracles](fiat-pricing-and-oracles.md)
+- [Refunds and voids](refunds-and-voids.md)
+- [Token analytics and market share metrics](token-analytics.md)

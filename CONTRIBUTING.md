@@ -32,10 +32,14 @@ Name branches `<type>/<short-description>`, optionally suffixed with the issue n
 | `fix/` | A bug fix | `fix/invoice-rounding-error-212` |
 | `docs/` | Documentation-only changes | `docs/465-466-467-468-ops-runbooks` |
 | `refactor/` | Code restructuring with no behavior change | `refactor/platform-fee-routing` |
-| `test/` | Adding or updating tests only | `test/subscription-grace-coverage` |
+| `test/` | Adding or updating tests only | `test/invoice-expiry-coverage` |
 | `chore/` | Tooling, CI, formatting, maintenance | `chore/update-soroban-sdk` |
 
 These prefixes mirror the [commit type](#commit-guidelines) you'll use most in that branch's commits — a `docs/` branch should contain almost entirely `docs:` commits, and so on. When a branch addresses multiple numbered issues at once (common for a batch of related docs pages), list every issue number, hyphen-separated, as this repository's own history does.
+
+## What belongs in this repository
+
+`contracts/` holds only the payment gateway: the `shade` hub and the per-merchant `account` contract. Before adding to `shade`, ask whether a merchant needs it to accept a payment, settle it, refund it, or see it on a dashboard. If not, it belongs in `example/`, a separate workspace that CI does not run against. See [ADR 0007](docs/architecture/decisions/0007-core-gateway-scope.md).
 
 ## Development Setup
 
@@ -43,16 +47,17 @@ These prefixes mirror the [commit type](#commit-guidelines) you'll use most in t
 
 - Rust (stable toolchain)
 - Cargo
-- Soroban CLI (if needed for contract deployment)
+- `wasm32v1-none` target: `rustup target add wasm32v1-none`
+- Stellar CLI (if needed for contract deployment)
 
 ### Building the Project
 
 ```bash
 # Build all contracts
-cargo build --workspace --release
+cargo build --workspace --target wasm32v1-none --release
 
 # Build a specific contract
-cargo build --manifest-path contracts/shade/Cargo.toml --release
+cargo build -p shade --target wasm32v1-none --release
 ```
 
 ### Running Tests
@@ -88,9 +93,10 @@ The [`Makefile`](Makefile) wraps the most common commands above:
 
 ```bash
 make fmt    # cargo fmt --all
-make lint   # cargo clippy --all-targets --all-features -- -D warnings
-make test   # cargo test --all
-make build  # cargo build --target wasm32-unknown-unknown --release
+make lint   # cargo clippy --workspace --all-features -- -D warnings
+make test   # cargo test --workspace --all-features
+make build  # cargo build --workspace --target wasm32v1-none --release
+make fixtures  # rebuild the account WASM that shade's tests deploy
 ```
 
 These are exactly the commands CI runs in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — running them locally before pushing means CI should not surprise you.
@@ -173,7 +179,7 @@ Run this checklist locally before opening (or re-requesting review on) a PR — 
 
 ## Review expectations
 
-- **Approvals required:** at least one maintainer approval before merge. A PR touching contract logic in `contracts/*/src/` that moves funds or changes authorization (payments, escrow release, subscription billing, withdrawals) should get a second, independent look before merge — the same "not just self-reviewed by the author" principle the [Upgrade Runbook](docs/operations/upgrade-runbook.md) applies to upgrades.
+- **Approvals required:** at least one maintainer approval before merge. A PR touching contract logic in `contracts/*/src/` that moves funds or changes authorization (payments, refunds, withdrawals) should get a second, independent look before merge — the same "not just self-reviewed by the author" principle the [Upgrade Runbook](docs/operations/upgrade-runbook.md) applies to upgrades.
 - **Response times:** maintainers aim to leave an initial review (approval, requested changes, or at least a comment) within a few business days of a PR being marked ready for review. If you haven't heard anything after a week, a polite ping on the PR is welcome — it's not pushy, it's often just what was needed to surface a stalled review queue.
 - **Handling requested changes:** push additional commits to the same branch rather than force-pushing over history mid-review — reviewers may have left line comments anchored to specific commits, and a force-push can orphan those threads. Once a reviewer's comments are addressed, reply on each thread (or resolve it, if your review tooling allows) so the reviewer can tell at a glance what's been handled versus what's still open, then re-request review.
 - **Merge method:** PRs are merged via GitHub's standard merge commit (see the `Merge pull request #NNN from ...` commits in this repository's history) — you don't need to squash or rebase your branch yourself before merge unless a maintainer asks for it to clean up a messy commit history.
@@ -190,7 +196,7 @@ A PR that makes a significant design decision (new or restructured contract, fac
 
 ### Docs site and quality checks
 
-Preview the docs site locally with `make docs-serve` (or `mdbook serve docs`) and build it with `make docs`. Docs PRs run link, markdown lint, and spell checks in CI; see [Docs tooling](docs/contributing/docs-tooling.md) for how to run them locally and add dictionary words.
+Preview the docs site locally with `make docs-serve` (or `mdbook serve docs`) and build it with `make docs`. Docs PRs run link checks in CI; see [Docs tooling](docs/contributing/docs-tooling.md) for how to run them locally.
 
 ### Keeping reference docs in sync
 
@@ -198,7 +204,7 @@ A PR changing a **public interface** must update the matching reference docs in 
 
 - `ShadeTrait` (adds, removes, or renames a function) → update `docs/reference/shade-interface.md`.
 - A public type in `contracts/shade/src/types.rs` → update `docs/reference/data-types.md`.
-- The public `#[contractimpl]` surface of a standalone contract crate (`account`, `escrow`, `subscription`, `ticketing`, `crowdfund`, and their factories) → update that contract's page under `docs/contracts/` (e.g. a change to `contracts/subscription/src/lib.rs`'s public functions updates `docs/contracts/subscription.md`).
+- The public surface of the `account` contract (`contracts/account/src/interface.rs`) → update `docs/contracts/account.md`.
 - A new or changed `#[contractevent]` → update `docs/reference/events.md`.
 - A new or changed `#[contracterror]` variant → update `docs/reference/errors.md`.
 

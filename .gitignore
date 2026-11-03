@@ -26,6 +26,7 @@ Thumbs.db
 # Build artifacts
 *.wasm
 !contracts/shade/src/tests/fixtures/upgrade_v2_contract.wasm
+!contracts/shade/src/tests/fixtures/account.wasm
 *.wasm.d
 
 # Test artifacts
@@ -38,6 +39,8 @@ test_snapshots/
 .stellar/
 
 issue_description.md
+50_more_issues.md
+BACKEND_OVERVIEW.md
 
 # mdBook generated assets
 docs/mermaid.min.js

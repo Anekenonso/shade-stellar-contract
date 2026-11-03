@@ -12,8 +12,8 @@
 //! - Paused contract rejects batch addition
 //! - Mixed batch (some new, some duplicate) only adds new ones
 
-use crate::shade::{Shade, ShadeClient};
 use crate::errors::ContractError;
+use crate::shade::{Shade, ShadeClient};
 use soroban_sdk::testutils::{Address as _, Events as _};
 use soroban_sdk::{Address, Env, Map, Symbol, TryIntoVal, Val, Vec};
 
@@ -32,7 +32,8 @@ fn setup_env() -> (Env, ShadeClient<'static>, Address, Address) {
 }
 
 fn make_token(env: &Env) -> Address {
-    env.register_stellar_asset_contract_v2(Address::generate(env)).address()
+    env.register_stellar_asset_contract_v2(Address::generate(env))
+        .address()
 }
 
 fn make_tokens(env: &Env, n: u32) -> Vec<Address> {
@@ -53,7 +54,7 @@ fn count_token_added_events(env: &Env) -> usize {
                 return false;
             }
             let name: Result<Symbol, _> = topics.get(0).unwrap().try_into_val(env);
-            name.map(|s| s == Symbol::new(env, "TokenAddedEvent"))
+            name.map(|s| s == Symbol::new(env, "token_added_event"))
                 .unwrap_or(false)
         })
         .count()
@@ -70,7 +71,7 @@ fn assert_token_added_event(env: &Env, contract_id: &Address, expected_token: &A
             return false;
         }
         let name: Result<Symbol, _> = topics.get(0).unwrap().try_into_val(env);
-        name.map(|s| s == Symbol::new(env, "TokenAddedEvent"))
+        name.map(|s| s == Symbol::new(env, "token_added_event"))
             .unwrap_or(false)
     });
 
@@ -117,7 +118,8 @@ fn test_batch_add_single_token() {
 
     client.add_accepted_tokens(&admin, &tokens);
 
-    panic!("Events: {:?}", env.events().all());
+    assert_eq!(count_token_added_events(&env), 1);
+    assert!(client.is_accepted_token(&token));
 }
 
 #[test]
@@ -187,15 +189,14 @@ fn test_batch_add_skips_already_whitelisted_tokens() {
 
     // Add token individually first
     client.add_accepted_token(&admin, &token);
-    let events_before = count_token_added_events(&env);
 
     // Now batch-add the same token
     let mut tokens = Vec::new(&env);
     tokens.push_back(token.clone());
     client.add_accepted_tokens(&admin, &tokens);
 
-    // No new event emitted
-    assert_eq!(count_token_added_events(&env), events_before);
+    // `events().all()` covers the latest call only, so no new event means zero.
+    assert_eq!(count_token_added_events(&env), 0);
 }
 
 #[test]
@@ -206,7 +207,6 @@ fn test_batch_add_mixed_new_and_existing_only_adds_new() {
     let new2 = make_token(&env);
 
     client.add_accepted_token(&admin, &existing);
-    let events_before = count_token_added_events(&env);
 
     let mut tokens = Vec::new(&env);
     tokens.push_back(existing.clone());
@@ -216,7 +216,7 @@ fn test_batch_add_mixed_new_and_existing_only_adds_new() {
     client.add_accepted_tokens(&admin, &tokens);
 
     // Only 2 new events (new1 and new2)
-    assert_eq!(count_token_added_events(&env) - events_before, 2);
+    assert_eq!(count_token_added_events(&env), 2);
     assert!(client.is_accepted_token(&existing));
     assert!(client.is_accepted_token(&new1));
     assert!(client.is_accepted_token(&new2));
@@ -269,11 +269,11 @@ fn test_batch_add_same_list_twice_is_idempotent() {
     let tokens = make_tokens(&env, 3);
 
     client.add_accepted_tokens(&admin, &tokens);
-    let events_after_first = count_token_added_events(&env);
+    assert_eq!(count_token_added_events(&env), 3);
 
     // Second call with same tokens - no new events
     client.add_accepted_tokens(&admin, &tokens);
-    assert_eq!(count_token_added_events(&env), events_after_first);
+    assert_eq!(count_token_added_events(&env), 0);
 
     // All still whitelisted
     for i in 0..tokens.len() {

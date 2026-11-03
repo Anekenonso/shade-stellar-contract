@@ -14,10 +14,10 @@ pub fn deploy_account(env: &Env, merchant: Address, merchant_id: u64) -> Address
             panic_with_error!(env, ContractError::WasmHashNotSet);
         });
 
-    // Generate a random salt for deployment.
-    let random_bytes_n: BytesN<32> = env.prng().gen();
-    let random_bytes = Bytes::from_slice(env, &random_bytes_n.to_array());
-    let salt = env.crypto().keccak256(&random_bytes);
+    // One account per merchant ID, so the address is predictable before deployment.
+    let salt = env
+        .crypto()
+        .keccak256(&Bytes::from_slice(env, &merchant_id.to_be_bytes()));
 
     let deployed_contract = env
         .deployer()

@@ -6,7 +6,7 @@ Short answers to the questions that come up most often in issues and pull reques
 
 ### What is Shade, and what is it not?
 
-Shade is a payment protocol implemented as Soroban smart contracts. A [merchant](../glossary.md#merchant) registers, issues [invoices](../glossary.md#invoice), and gets paid in a whitelisted token, with the protocol fee split out in the same transaction. The commerce primitives on top of that core are subscriptions, event ticketing, escrow, and crowdfunding campaigns.
+Shade is a payment protocol implemented as Soroban smart contracts. A [merchant](../glossary.md#merchant) registers, issues [invoices](../glossary.md#invoice), and gets paid in a whitelisted token, with the protocol fee split out in the same transaction.
 
 Shade is **not**:
 
@@ -53,11 +53,11 @@ The effective rate can be lower than the configured one — a per-merchant overr
 
 For invoice payments, nobody in the middle. The `shade` contract never receives the funds: it computes the split and instructs the token contract to transfer from the payer to the merchant's account and to the platform account in one transaction. The merchant's balance sits in an account the merchant controls, and a withdrawal needs the merchant's own authorization.
 
-The admin **cannot** move a merchant's funds. Features that are designed to hold a balance until a condition is met — escrow, crowdfunding campaigns, and subscription allowances — hold or pull funds under the rules of their own components; read the matching concept page before relying on them. See [Escrow](../concepts/escrow.md).
+The admin **cannot** move a merchant's funds. The hub, as each account's manager, can move funds through `refund` and `sweep_to`, but only along the invoice and auto-withdrawal paths the contract defines.
 
 ### Do I need to deploy an account contract for every merchant?
 
-No. `register_merchant` sets the merchant's settlement `account` to the merchant's own wallet address, which is enough to receive payments. Deploy the `account` contract and link it with `set_merchant_account` only if you want an on-chain vault with withdrawal thresholds, restriction flags, or auto-withdrawal. `register_merchant` does not deploy an account contract itself, even if `set_account_wasm_hash` has been called. See [Merchants](../concepts/merchants.md) and [Account contract](../contracts/account.md).
+Yes. A merchant cannot be paid until it has called `deploy_merchant_account`, which deploys its account contract with the hub as manager. The admin must have set the account WASM hash with `set_account_wasm_hash` first.
 
 ### Can a payment be reversed?
 
@@ -78,7 +78,6 @@ Only the admin, with `pause(admin)`; `unpause(admin)` reverses it. A pause block
 There are two routes to the same host call, `update_current_contract_wasm`:
 
 - **Admin route.** `upgrade(new_wasm_hash)` takes no admin argument — it reads the admin from storage and requires that address's authorization. It is the emergency lever.
-- **Governance route.** A council member calls `propose_upgrade`, members cast `vote_on_upgrade`, and anyone calls `finalize_upgrade` once voting closes and quorum is met.
 
 > **Security:** The admin route needs one signature and no vote. Treat the admin key as the protocol's root of trust and read [Admin and ownership](../security/admin-and-ownership.md) before choosing who holds it.
 

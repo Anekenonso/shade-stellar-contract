@@ -13,14 +13,14 @@ fn set_merchant_webhook(env: Env, merchant: Address, webhook: String);
 ```
 
 - **Signer:** The merchant's own address (`merchant.require_auth()`).
-- **Authorization:** Requires the caller to be a registered merchant (`is_merchant`); does **not** require the merchant to be active. See [`contracts/shade/src/components/merchant.rs#L410-L437`](../../contracts/shade/src/components/merchant.rs#L410-L437).
+- **Authorization:** Requires the caller to be a registered merchant (`is_merchant`); does **not** require the merchant to be active. See [`contracts/shade/src/components/merchant.rs#L410-L437`](../../contracts/shade/src/components/merchant.rs).
 - **URL format:** None enforced. The parameter is a plain `String` and is stored as given.
 - **Maximum length:** None enforced in the current source. There is no length check anywhere in `set_merchant_webhook`.
 - **Validation behavior:** **None.** The contract does not check the scheme (`https://` is not required), does not check that the value looks like a URL at all, and does not attempt to reach it. A merchant could store the literal string `"not a url"` and the call would succeed.
 
 > **Warning:** Because there is no on-chain validation, do not treat the presence of a webhook value as evidence it is a safe, well-formed HTTPS endpoint. Every consideration in [SSRF considerations for the notifier](#ssrf-considerations-for-the-notifier) below applies to whatever a merchant supplies here, including a value that never resolves, resolves to a private network address, or redirects somewhere unexpected.
 
-- **Event emitted:** `MerchantWebhookSetEvent`, with fields `merchant: Address`, `merchant_id: u64`, `webhook: String`, `timestamp: u64` — see [`contracts/shade/src/events.rs#L198-L220`](../../contracts/shade/src/events.rs#L198-L220). The event carries the **full webhook URL string** in its payload, so anyone reading the event stream (including a public indexer) can see every URL a merchant has ever configured, not just the current one.
+- **Event emitted:** `MerchantWebhookSetEvent`, with fields `merchant: Address`, `merchant_id: u64`, `webhook: String`, `timestamp: u64` — see [`contracts/shade/src/events.rs#L198-L220`](../../contracts/shade/src/events.rs). The event carries the **full webhook URL string** in its payload, so anyone reading the event stream (including a public indexer) can see every URL a merchant has ever configured, not just the current one.
 
 ### `get_merchant_webhook`
 
@@ -28,7 +28,7 @@ fn set_merchant_webhook(env: Env, merchant: Address, webhook: String);
 fn get_merchant_webhook(env: Env, merchant_id: u64) -> String;
 ```
 
-Returns the currently configured webhook string for a merchant ID, via `get_merchant(env, merchant_id).webhook`. Returns an empty string (`""`) for a merchant that has never called `set_merchant_webhook` — registration initializes `webhook` to `String::from_str(env, "")` (see [`contracts/shade/src/components/merchant.rs#L40`](../../contracts/shade/src/components/merchant.rs#L40)), not an absent value, so there is no error case to handle here beyond `MerchantNotFound` (6) for an invalid `merchant_id`.
+Returns the currently configured webhook string for a merchant ID, via `get_merchant(env, merchant_id).webhook`. Returns an empty string (`""`) for a merchant that has never called `set_merchant_webhook` — registration initializes `webhook` to `String::from_str(env, "")` (see [`contracts/shade/src/components/merchant.rs#L40`](../../contracts/shade/src/components/merchant.rs)), not an absent value, so there is no error case to handle here beyond `MerchantNotFound` (6) for an invalid `merchant_id`.
 
 ### Verifying the configured URL
 
@@ -104,8 +104,6 @@ Each row maps directly to a `#[contractevent]` struct in [`contracts/shade/src/e
 | `invoice.partially_refunded` | `InvoicePartiallyRefundedEvent` | `invoice_id`, `merchant`, `amount`, `total_amount_refunded`, `timestamp` |
 | `invoice.refunded` | `InvoiceRefundedEvent` | `invoice_id`, `merchant`, `amount`, `timestamp` |
 | `invoice.voided` | `InvoiceCancelledEvent` | `invoice_id`, `merchant`, `timestamp` |
-| `subscription.charged` | `SubscriptionChargedEvent` | `subscription_id`, `plan_id`, `customer`, `merchant`, `amount`, `fee`, `token`, `timestamp` |
-| `ticket.purchased` | `TicketPurchasedEvent` | `ticket_id`, `event_id`, `merchant_id`, `buyer`, `amount`, `fee`, `merchant_amount`, `token`, `timestamp` |
 
 > **Note on "invoice partially paid":** the tracking issue for this guide lists "invoice partially paid" as a distinct event type. It is not. `pay_invoice_partial` emits the **same** `InvoicePaidEvent` that `pay_invoice` does (see [ShadeTrait function reference: `pay_invoice_partial`](../reference/shade-interface.md#pay_invoice_partial)) — there is no separate `InvoicePartiallyPaidEvent` in the source. A notifier distinguishing "fully paid" from "partially paid" webhook types must derive that distinction itself, by comparing the event's `amount` against the invoice's total `amount` (read via `get_invoice`), not from the event type.
 

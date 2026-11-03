@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::shade::{Shade, ShadeClient};
+use crate::tests::support::LinkMerchantAccount as _;
 use crate::types::InvoiceStatus;
 use soroban_sdk::testutils::Address as _;
 use soroban_sdk::{Address, Env, String};
@@ -121,7 +122,7 @@ fn test_void_invoice_already_paid() {
 
     // Create merchant account
     let merchant_account = Address::generate(&env);
-    client.set_merchant_account(&merchant, &merchant_account);
+    client.link_merchant_account(&merchant, &merchant_account);
 
     // Create invoice
     let description = String::from_str(&env, "Test Invoice");
@@ -164,7 +165,7 @@ fn test_pay_voided_invoice() {
 
     // Create merchant account
     let merchant_account = Address::generate(&env);
-    client.set_merchant_account(&merchant, &merchant_account);
+    client.link_merchant_account(&merchant, &merchant_account);
 
     // Create invoice
     let description = String::from_str(&env, "Test Invoice");
@@ -247,7 +248,7 @@ fn test_void_refunded_invoice() {
     let merchant_account = account::account::MerchantAccountClient::new(&env, &merchant_account_id);
     merchant_account.initialize(&merchant, &contract_id, &1_u64);
 
-    client.set_merchant_account(&merchant, &merchant_account_id);
+    client.link_merchant_account(&merchant, &merchant_account_id);
 
     let description = String::from_str(&env, "Refundable Invoice");
     let invoice_id = client.create_invoice(&merchant, &description, &1000, &token, &None);

@@ -100,15 +100,6 @@ All functions gated by `core::assert_admin` (which requires `admin.require_auth(
 | `set_merchant_platform_fee` | Set per-merchant fee override |
 | `clear_merchant_platform_fee` | Clear per-merchant fee override |
 | `propose_admin_transfer` | Propose a new admin |
-| `register_bridge_listener` | Authorize a bridge relayer |
-| `remove_bridge_listener` | Revoke a bridge relayer |
-| `add_gov_member` | Add a governance council member |
-| `remove_gov_member` | Remove a governance council member |
-| `set_governance_config` | Configure voting parameters |
-| `set_multisig_threshold` | Set withdrawal threshold |
-| `configure_multisig` | Configure multi-sig signers and quorum |
-| `create_campaign_category` | Create a campaign category |
-| `update_campaign_category` | Update a campaign category |
 | `upgrade` | Upgrade the contract WASM |
 
 ## Operational recommendations

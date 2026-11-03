@@ -9,6 +9,7 @@ pub enum ContractError {
     NotAuthorized = 3,
     InsufficientBalance = 4,
     AccountRestricted = 5,
-    InvoiceNotFound = 6,
-    InvalidInvoiceStatus = 7,
+    WithdrawalRequestNotFound = 6,
+    InvalidWithdrawalStatus = 7,
+    InvalidThreshold = 8,
 }

@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::shade::{Shade, ShadeClient};
+use crate::tests::support::LinkMerchantAccount as _;
 use crate::types::{DataKey, InvoiceStatus};
 use account::account::{MerchantAccount, MerchantAccountClient};
 use soroban_sdk::testutils::{Address as _, Ledger as _};
@@ -47,7 +48,7 @@ fn setup_paid_invoice(
     let merchant_account_id = env.register(MerchantAccount, ());
     let merchant_account = MerchantAccountClient::new(env, &merchant_account_id);
     merchant_account.initialize(merchant, shade_contract_id, &1_u64);
-    client.set_merchant_account(merchant, &merchant_account_id);
+    client.link_merchant_account(merchant, &merchant_account_id);
 
     let token_admin = token::StellarAssetClient::new(env, token);
     token_admin.mint(&merchant_account_id, &amount);

@@ -16,11 +16,12 @@ ADRs are numbered sequentially (`NNNN-short-title.md`) and never deleted. To cha
 
 ## Index
 
+ADRs 0005 and 0006 concern contracts that moved out of this workspace; they are kept in [`example/docs/decisions/`](../../../example/docs/decisions).
+
 | ADR | Title | Status |
 |---|---|---|
 | [0001](0001-component-based-shade-contract.md) | Component-based structure inside the shade contract | Accepted |
 | [0002](0002-account-contract-per-merchant.md) | Dedicated account contract per merchant deployed by the hub | Accepted |
 | [0003](0003-time-locked-fee-changes.md) | Time-locked fee changes via `propose_fee` / `execute_fee` | Accepted |
 | [0004](0004-two-step-admin-transfer.md) | Two-step admin transfer | Accepted |
-| [0005](0005-separate-escrow-and-ticketing-factories.md) | Separate factories for escrow and ticketing contracts | Accepted |
-| [0006](0006-hub-and-standalone-subscriptions.md) | Hub subscription module alongside the standalone subscription contract | Accepted |
+| [0007](0007-core-gateway-scope.md) | Limit the workspace to the core payment gateway | Accepted |

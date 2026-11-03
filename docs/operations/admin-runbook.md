@@ -27,10 +27,6 @@ Before using this runbook, know what the code actually enforces — it differs f
 | `propose_admin_transfer` | Admin only (current admin) | `accept_admin_transfer` requires the *proposed* admin's signature instead |
 | `pause` / `unpause` | Admin only | |
 | `upgrade` | Admin only | See [Upgrade Runbook](upgrade-runbook.md) |
-| `register_bridge_listener` / `remove_bridge_listener` | Admin only | |
-| `add_gov_member` / `remove_gov_member` / `set_governance_config` | Admin only | |
-| `set_multisig_threshold` / `configure_multisig` | Admin only | |
-| `create_campaign_category` / `update_campaign_category` | Admin only | |
 
 ## Routine operation: fees
 
@@ -95,7 +91,7 @@ A token can be accepted with no fee configured (fee defaults to `0`) and no orac
 stellar contract invoke --id <shade-id> --network <network> --source-account admin -- remove_accepted_token --admin <admin> --token <token>
 ```
 
-This removes the token from the accepted-tokens whitelist so new invoices/subscriptions/campaigns can no longer be created in it. It does **not** clear the token's fee (`get_fee` still returns whatever was last set) or its oracle config — re-adding the same token later restores its old fee/oracle configuration implicitly, which may or may not be what you want. There is no separate "clear fee" or "clear oracle" call for a de-listed token in the current interface; if you need those values reset, call `set_fee --fee 0` explicitly before or after de-listing.
+This removes the token from the accepted-tokens whitelist so new invoices can no longer be created in it. It does **not** clear the token's fee (`get_fee` still returns whatever was last set) or its oracle config — re-adding the same token later restores its old fee/oracle configuration implicitly, which may or may not be what you want. There is no separate "clear fee" or "clear oracle" call for a de-listed token in the current interface; if you need those values reset, call `set_fee --fee 0` explicitly before or after de-listing.
 
 ## Merchant operations
 
@@ -190,7 +186,7 @@ stellar contract invoke --id <shade-id> --network <network> -- get_platform_acco
 stellar contract invoke --id <shade-id> --network <network> -- get_merchant_analytics --merchant <test-merchant> --token <token>
 ```
 
-Admin-only, applies immediately — the very next `pay_invoice`/`pay_invoice_partial`/`charge_subscription`/ticket purchase that routes a platform fee (`PlatformFeeRoutedEvent`) sends it to the new account, with no transition period. This has no special impact on merchants, factories, or fees beyond where the platform's cut of each transaction is sent — merchant amounts, fee *rates*, and accepted-token configuration are all untouched by this call (`contracts/shade/src/components/admin.rs`). Record the transaction and the change per [Change log](#change-log).
+Admin-only, applies immediately — the very next `pay_invoice`/`pay_invoice_partial` that routes a platform fee (`PlatformFeeRoutedEvent`) sends it to the new account, with no transition period. This has no special impact on merchants or fees beyond where the platform's cut of each transaction is sent — merchant amounts, fee *rates*, and accepted-token configuration are all untouched by this call (`contracts/shade/src/components/admin.rs`). Record the transaction and the change per [Change log](#change-log).
 
 ## Admin key custody
 
@@ -240,7 +236,7 @@ Signals that actually exist or can be obtained from this protocol, without assum
 - Incorrect fee behavior — `calculate_fee`/`compute_platform_fee_split` returning a value inconsistent with the configured `get_fee`.
 - Token/oracle anomalies — `get_token_oracle` returning a changed `contract` address, or fiat-priced invoice amounts resolving inconsistently.
 - Merchant reports of missing/incorrect payments.
-- Widespread `pay_invoice`/`charge_subscription` failures with no obvious single cause.
+- Widespread `pay_invoice` failures with no obvious single cause.
 - Suspicious admin operations — any `set_*`, `grant_role`, or `upgrade` event you cannot attribute to a known, approved action in your change log.
 - Unexpected state changes on inspection (a merchant's `active`/`verified` flags, accepted-tokens list, or role assignments differing from your last known-good record).
 - Analytics inconsistencies — `get_merchant_volume`/`get_token_volume` diverging from your own independently-tracked totals.
@@ -263,7 +259,7 @@ Objective criteria for pausing immediately:
 
 **Pause pending confirmation** for: a pattern that looks like it could be the above list but isn't yet confirmed — for example, one report of an incorrect fee that could be a client-side calculation error or could be a real contract-side issue. Escalate to [Diagnosis](#triage-and-diagnosis) first with a short, bounded investigation window before deciding.
 
-Do not make pausing the default response to every report — see [Pausable § Risks of pausing with in-flight state](../security/pausable.md#risks-of-pausing-with-in-flight-state) for the real costs of an unnecessary pause (frozen subscriptions accruing overdue charges, invoices expiring while frozen, escrow deadlines passing).
+Do not make pausing the default response to every report — see [Pausable § Risks of pausing with in-flight state](../security/pausable.md#risks-of-pausing-with-in-flight-state) for the real costs of an unnecessary pause (invoices expiring while frozen).
 
 ### Pause procedure
 
@@ -290,7 +286,7 @@ stellar contract invoke --id <shade-id> --network <network> -- is_paused
 Deterministic order of investigation, using only what's actually queryable from this contract:
 
 1. **Confirm pause state and admin identity** — `is_paused`, `get_admin`. Rule out that the incident *is* an admin-key compromise before doing anything else that assumes you still control the admin key.
-2. **Read the specific affected state** — the merchant, invoice, subscription, or campaign named in the report (`get_merchant`, `get_invoice`, `get_subscription`, `get_campaign`).
+2. **Read the specific affected state** — the merchant or invoice named in the report (`get_merchant`, `get_invoice`).
 3. **Read the relevant configuration** — `get_fee`, `is_accepted_token`, `get_token_oracle` for the token(s) involved.
 4. **Check role/admin state for the affected operation** — `has_role` for whoever executed the suspicious action, if known.
 5. **Cross-check the transaction history** — pull the actual transaction and its emitted events from an RPC/explorer for the contract ID, for the time window around the report.
@@ -311,7 +307,7 @@ Based on actual protocol capabilities — do not promise a remediation this cont
 | Upgrade | See [Upgrade Runbook](upgrade-runbook.md) — only if the root cause is a code defect, not a configuration error. |
 | Rollback | Only meaningful for an upgrade-caused incident, and only if no incompatible state was written since — see [Upgrade Runbook § Rollback](upgrade-runbook.md#rollback). |
 
-**Irreversible operations** — cannot be remediated after the fact, only mitigated going forward: funds already transferred via `pay_invoice`/`charge_subscription`/`refund_invoice` cannot be clawed back by the contract (no admin "force transfer back" exists); a fee already charged on a completed payment cannot be retroactively adjusted; an already-finalized DAO `upgrade` (via `finalize_upgrade`) that turns out to be wrong requires a forward-fix or the (conditional) rollback path above, not an "undo."
+**Irreversible operations** — cannot be remediated after the fact, only mitigated going forward: funds already transferred via `pay_invoice`/`refund_invoice` cannot be clawed back by the contract (no admin "force transfer back" exists); a fee already charged on a completed payment cannot be retroactively adjusted.
 
 ### Unpause criteria
 
@@ -378,7 +374,7 @@ Documentation, isolated operational, or non-critical issues.
 2. **Reconstruct the timeline** from the change log and on-chain transaction/event history — what was configured/deployed when, in what order.
 3. **Collect transaction/event/ledger records** for everything in scope of the incident.
 4. **Identify root cause** — a specific function, configuration value, or key-management failure, not just a symptom.
-5. **Determine affected merchants/transactions** — which specific invoice IDs, merchant IDs, or subscription IDs were touched.
+5. **Determine affected merchants/transactions** — which specific invoice IDs or merchant IDs were touched.
 6. **Communicate impact** to affected merchants specifically, not only a general "incident resolved" notice.
 7. **Document remediation** — what was changed, by whom, with what verification (this should already exist in your change log; consolidate it into the incident record).
 8. **Create follow-up tasks** — anything from "add a regression test" to "the team should adopt X monitoring" surfaced during the incident.

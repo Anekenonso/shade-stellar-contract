@@ -9,7 +9,7 @@ Once your environment checks out, continue to [Building the Contracts](building.
 | Tool | Required version | Why |
 |---|---|---|
 | Rust (`rustc`, `cargo`) | 1.84.0 or newer, stable channel | Minimum supported Rust version of `soroban-sdk` 23.5.3 and its `soroban-env-host` / `stellar-xdr` dependencies. |
-| `wasm32-unknown-unknown` target | Matching your toolchain | Soroban executes WASM; the workspace cannot produce a deployable artifact without it. |
+| `wasm32v1-none` target | Matching your toolchain | Soroban executes WASM; the workspace cannot produce a deployable artifact without it. |
 | Stellar CLI (`stellar`) | 23.x | Optimizes, installs, deploys, and invokes contracts. The CLI major version tracks the protocol/SDK major — pair 23.x with `soroban-sdk` 23.x. |
 | `rustfmt`, `clippy` | Shipped with the stable toolchain | CI fails the build on unformatted code and on any clippy warning. |
 | `pre-commit` (optional) | Any recent release; needs Python 3 | Runs the same hooks locally that [`.github/workflows/pre-commit.yml`](../../.github/workflows/pre-commit.yml) runs on every PR. |
@@ -50,10 +50,10 @@ Your `rustc` must be **1.84.0 or newer**. That floor comes from the `rust-versio
 
 ### Add the WASM target
 
-Soroban contracts compile to `wasm32-unknown-unknown`. Add the target once per toolchain:
+Soroban contracts compile to `wasm32v1-none`. Add the target once per toolchain:
 
 ```bash
-rustup target add wasm32-unknown-unknown
+rustup target add wasm32v1-none
 ```
 
 ### Add the formatting and lint components
@@ -118,7 +118,7 @@ Two different versions matter, and they are not the same number:
 | [`Cargo.toml`](../../Cargo.toml) `[workspace.dependencies]` | `soroban-sdk = "23.4.0"` | The **requirement**. Caret semantics, so any `23.x.y` at or above 23.4.0 satisfies it. |
 | [`Cargo.lock`](../../Cargo.lock) | `soroban-sdk 23.5.3` | The **resolved** version every contributor and CI actually builds against. |
 
-Every crate under [`contracts/`](../../contracts/) consumes the SDK through `soroban-sdk = { workspace = true }`, so there is exactly one SDK version in the workspace. Tests additionally enable the SDK's `testutils` feature via each crate's `[dev-dependencies]`.
+Every crate under [`contracts/`](../../contracts) consumes the SDK through `soroban-sdk = { workspace = true }`, so there is exactly one SDK version in the workspace. Tests additionally enable the SDK's `testutils` feature via each crate's `[dev-dependencies]`.
 
 Rules that follow from this pinning:
 
@@ -178,9 +178,9 @@ echo "rustfmt:      $(cargo fmt --version 2>/dev/null || echo 'MISSING')"
 echo "clippy:       $(cargo clippy --version 2>/dev/null || echo 'MISSING')"
 echo "pre-commit:   $(pre-commit --version 2>/dev/null || echo 'not installed (optional)')"
 
-rustup target list --installed | grep -q '^wasm32-unknown-unknown$' \
+rustup target list --installed | grep -q '^wasm32v1-none$' \
   && echo "wasm target:  installed" \
-  || echo "wasm target:  MISSING - run: rustup target add wasm32-unknown-unknown"
+  || echo "wasm target:  MISSING - run: rustup target add wasm32v1-none"
 
 grep -A1 '^name = "soroban-sdk"$' Cargo.lock | tail -1 \
   | sed 's/^version = /resolved sdk: /'
@@ -202,7 +202,7 @@ resolved sdk: "23.5.3"
 Then confirm the workspace actually builds and tests:
 
 ```bash
-cargo build --target wasm32-unknown-unknown --release
+cargo build --target wasm32v1-none --release
 cargo test --workspace --all-features
 ```
 
@@ -210,12 +210,12 @@ If both succeed, your environment is correct.
 
 ## Troubleshooting
 
-### `can't find crate for 'core'` / `the wasm32-unknown-unknown target may not be installed`
+### `can't find crate for 'core'` / `the wasm32v1-none target may not be installed`
 
 The WASM target is missing from the active toolchain. Targets are per-toolchain, so adding it under one toolchain does not add it under another:
 
 ```bash
-rustup target add wasm32-unknown-unknown
+rustup target add wasm32v1-none
 rustup show          # confirms which toolchain is active
 ```
 
@@ -283,7 +283,7 @@ cargo build
   cargo install --locked stellar-cli
   ```
 
-- The `wasm32-unknown-unknown` output itself is architecture-independent — a WASM built on Apple Silicon is byte-identical to one built on x86-64 Linux with the same toolchain and lock file.
+- The `wasm32v1-none` output itself is architecture-independent — a WASM built on Apple Silicon is byte-identical to one built on x86-64 Linux with the same toolchain and lock file.
 
 ### `pre-commit` hooks fail immediately after install
 

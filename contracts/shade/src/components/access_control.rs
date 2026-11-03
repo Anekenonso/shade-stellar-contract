@@ -1,7 +1,8 @@
 use crate::components::core;
+use crate::errors::ContractError;
 use crate::events;
 use crate::types::{DataKey, Role};
-use soroban_sdk::{Address, Env};
+use soroban_sdk::{panic_with_error, Address, Env};
 
 pub fn grant_role(env: &Env, admin: &Address, user: &Address, role: Role) {
     core::assert_admin(env, admin);
@@ -49,8 +50,6 @@ pub fn has_role(env: &Env, user: &Address, role: Role) -> bool {
 pub fn assert_has_role(env: &Env, user: &Address, role: Role) {
     user.require_auth();
     if !has_role(env, user, role) {
-        use crate::errors::ContractError;
-        use soroban_sdk::panic_with_error;
         panic_with_error!(env, ContractError::NotAuthorized);
     }
 }

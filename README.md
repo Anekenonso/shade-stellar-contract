@@ -23,7 +23,7 @@ Shade enables merchants, freelancers, and enterprises to accept digital payments
 
 Ensure you have the following installed:
 - [Rust](https://www.rust-lang.org/tools/install)
-- `wasm32-unknown-unknown` target: `rustup target add wasm32-unknown-unknown`
+- `wasm32v1-none` target: `rustup target add wasm32v1-none`
 - [Soroban CLI](https://soroban.stellar.org/docs/getting-started/setup#install-the-soroban-cli)
 
 ### Installation
@@ -36,7 +36,7 @@ Ensure you have the following installed:
 
 2.  Build the project:
     ```bash
-    cargo build --target wasm32-unknown-unknown --release
+    cargo build --workspace --target wasm32v1-none --release
     ```
 
 3.  Run tests:
@@ -54,7 +54,8 @@ The repository is structured as a Cargo workspace with modular crates. For a det
 
 ```text
 shade-stellar-contract/
-├── contracts/          # Smart contract crates (shade hub, account, escrow, ticketing, crowdfund)
+├── contracts/          # The gateway: the shade hub and the per-merchant account
+├── example/            # Non-core contracts and modules, in their own workspace outside CI
 ├── docs/               # Architecture, quickstart tutorials, and contract references
 └── scripts/            # Deployment and testing automation
 ```
@@ -64,7 +65,7 @@ shade-stellar-contract/
 To build the optimized WASM binary for deployment:
 
 ```bash
-cargo build --target wasm32-unknown-unknown --release
+cargo build --workspace --target wasm32v1-none --release
 ```
 
 

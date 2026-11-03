@@ -113,94 +113,8 @@ Functions are marked as **blocked** if they call `pausable_component::assert_not
 | `amend_invoice` | Blocked |
 | `propose_admin_transfer` | Allowed |
 | `accept_admin_transfer` | Allowed |
-| `create_subscription_plan` | Blocked |
-| `get_subscription_plan` | Allowed |
-| `subscribe` | Blocked |
-| `get_subscription` | Allowed |
-| `charge_subscription` | Blocked |
-| `cancel_subscription` | Blocked |
-| `deactivate_plan` | Blocked |
 | `get_user_transactions` | Allowed |
-| `emit_bridge_placeholder` | Blocked |
-| `register_bridge_listener` | Blocked |
-| `remove_bridge_listener` | Blocked |
-| `is_bridge_listener` | Allowed |
-| `record_bridge_deposit` | Blocked |
-| `get_bridge_deposit` | Allowed |
-| `is_bridge_deposit_processed` | Allowed |
-| `get_bridge_deposit_count` | Allowed |
-| `get_bridge_credit` | Allowed |
-| `add_gov_member` | Blocked |
-| `remove_gov_member` | Blocked |
-| `is_gov_member` | Allowed |
-| `get_gov_member_count` | Allowed |
-| `set_governance_config` | Blocked |
-| `propose_upgrade` | Blocked |
-| `vote_on_upgrade` | Blocked |
-| `finalize_upgrade` | Blocked |
-| `get_upgrade_proposal` | Allowed |
-| `has_voted_on_upgrade` | Allowed |
-| `create_event` | Blocked |
-| `purchase_ticket` | Blocked |
-| `configure_dynamic_pricing` | Blocked |
-| `get_current_ticket_price` | Allowed |
-| `cancel_event_and_batch_refund` | Blocked |
-| `resell_ticket` | Blocked |
-| `get_event` | Allowed |
-| `get_ticket` | Allowed |
-| `get_event_tickets` | Allowed |
-| `get_user_tickets` | Allowed |
-| `purchase_tickets_bulk` | Blocked |
-| `create_nft_collection` | Blocked |
-| `mint_nft` | Blocked |
-| `batch_mint_nfts` | Blocked |
-| `transfer_nft` | Blocked |
-| `burn_nft` | Blocked |
-| `claim_nft_reward` | Blocked |
-| `deactivate_nft_collection` | Blocked |
-| `get_nft_collection` | Allowed |
-| `get_nft` | Allowed |
-| `get_collection_nfts` | Allowed |
-| `get_user_nfts` | Allowed |
-| `set_multisig_threshold` | Blocked |
-| `get_multisig_threshold` | Allowed |
-| `configure_multisig` | Blocked |
-| `propose_withdrawal` | Blocked |
 | `approve_withdrawal` | Blocked |
-| `cancel_withdrawal` | Blocked |
-| `get_withdrawal_proposal` | Allowed |
-| `has_approved_withdrawal` | Allowed |
-| `get_withdrawal_proposal_count` | Allowed |
-| `create_escrow` | Blocked |
-| `get_escrow` | Allowed |
-| `fund_escrow` | Blocked |
-| `release_escrow` | Blocked |
-| `refund_escrow` | Blocked |
-| `create_campaign_category` | Blocked |
-| `update_campaign_category` | Blocked |
-| `get_campaign_category` | Allowed |
-| `get_campaign_categories` | Allowed |
-| `create_campaign_tag` | Blocked |
-| `get_campaign_tag` | Allowed |
-| `get_campaign_tags` | Allowed |
-| `create_campaign` | Blocked |
-| `update_campaign` | Blocked |
-| `set_campaign_active` | Blocked |
-| `add_campaign_tag` | Blocked |
-| `remove_campaign_tag` | Blocked |
-| `record_campaign_contribution` | Blocked |
-| `get_campaign` | Allowed |
-| `get_campaigns` | Allowed |
-| `create_backer_campaign` | Blocked |
-| `pledge_to_campaign` | Blocked |
-| `select_backer_reward_tier` | Blocked |
-| `fulfill_backer_reward` | Blocked |
-| `claim_backer_perk` | Blocked |
-| `create_stretch_goal` | Blocked |
-| `unlock_stretch_goal` | Blocked |
-| `cancel_stretch_goal` | Blocked |
-| `grant_stretch_goal_reward` | Blocked |
-| `claim_stretch_goal_reward` | Blocked |
 
 ## Operational playbook
 
@@ -209,20 +123,19 @@ Functions are marked as **blocked** if they call `pausable_component::assert_not
 Pause the contract immediately if you detect:
 - Unauthorized fund movement or suspected key compromise.
 - A vulnerability being actively exploited.
-- Unexpected behavior in payment flows, subscriptions, or escrow.
+- Unexpected behavior in payment flows.
 
 ### What to communicate to merchants
 
 1. Announce the pause with a clear reason and expected investigation timeline.
-2. Advise merchants that invoice creation, payments, and subscriptions are frozen.
+2. Advise merchants that invoice creation and payments are frozen.
 3. Reassure that read-only queries still work and no funds are at risk from the pause itself.
 
 ### What state can be safely inspected while paused
 
 All read-only functions remain callable. Merchants and users can:
-- Query invoices, subscriptions, merchants, campaigns, and analytics.
+- Query invoices, merchants, and analytics.
 - Verify current fee rates, token acceptlists, and oracle configs.
-- Check escrow statuses and bridge deposit records.
 
 ### Checklist before unpausing
 
@@ -237,15 +150,12 @@ All read-only functions remain callable. Merchants and users can:
 
 | Risk | Description |
 |------|-------------|
-| In-flight subscriptions | Active subscriptions continue to accrue time but cannot be charged while paused. When unpaused, `charge_subscription` may attempt to bill for an overdue period. |
 | Expiring invoices | Invoices with `expires_at` may expire while paused, preventing payment even after unpausing. |
-| Escrow deadlines | Escrowed funds may reach their deadline while paused, potentially triggering automatic refund logic. |
 | Auto-withdrawal thresholds | Merchant auto-withdrawal triggers are frozen. Large balances may accumulate and execute in bulk when unpaused. |
-| Governance voting windows | Upgrade proposals may have their voting windows close during a pause, potentially passing or failing without full participation. |
 
 ## Known limitations
 
-- The pause is global — there is no per-feature granularity (e.g., pausing payments while leaving subscriptions active). A future enhancement is proposed in the component source.
+- The pause is global — there is no per-feature granularity. A future enhancement is proposed in the component source.
 - Idempotency is not supported: calling `pause` on an already-paused contract panics. The admin must ensure the contract is unpaused before attempting to pause again.
 
 ← [Back to security](README.md)

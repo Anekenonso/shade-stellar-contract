@@ -2,6 +2,8 @@
 # Install with: pip install pre-commit && pre-commit install
 # Run manually with: pre-commit run --all-files
 
+exclude: ^example/
+
 repos:
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks

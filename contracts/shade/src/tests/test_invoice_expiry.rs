@@ -2,6 +2,7 @@
 
 use crate::errors::ContractError;
 use crate::shade::{Shade, ShadeClient};
+use crate::tests::support::LinkMerchantAccount as _;
 use soroban_sdk::testutils::{Address as _, Ledger as _};
 use soroban_sdk::{token, Address, Env, String};
 
@@ -35,7 +36,7 @@ fn test_pay_invoice_panics_when_expired() {
     client.register_merchant(&merchant);
 
     let merchant_account = Address::generate(&env);
-    client.set_merchant_account(&merchant, &merchant_account);
+    client.link_merchant_account(&merchant, &merchant_account);
 
     // create invoice that expires at t=1000
     env.ledger().set_timestamp(500);
@@ -72,7 +73,7 @@ fn test_pay_invoice_panics_well_past_expiry() {
     client.register_merchant(&merchant);
 
     let merchant_account = Address::generate(&env);
-    client.set_merchant_account(&merchant, &merchant_account);
+    client.link_merchant_account(&merchant, &merchant_account);
 
     env.ledger().set_timestamp(100);
     let invoice_id = client.create_invoice(
@@ -112,7 +113,7 @@ fn test_pay_invoice_succeeds_before_expiry() {
     client.register_merchant(&merchant);
 
     let merchant_account = Address::generate(&env);
-    client.set_merchant_account(&merchant, &merchant_account);
+    client.link_merchant_account(&merchant, &merchant_account);
 
     env.ledger().set_timestamp(100);
     let invoice_id = client.create_invoice(
@@ -152,7 +153,7 @@ fn test_pay_invoice_no_expiry_always_valid() {
     client.register_merchant(&merchant);
 
     let merchant_account = Address::generate(&env);
-    client.set_merchant_account(&merchant, &merchant_account);
+    client.link_merchant_account(&merchant, &merchant_account);
 
     env.ledger().set_timestamp(1);
     let invoice_id = client.create_invoice(

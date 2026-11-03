@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::shade::{Shade, ShadeClient};
+use crate::tests::support::LinkMerchantAccount as _;
 use crate::types::InvoiceStatus;
 use account::account::MerchantAccount;
 use soroban_sdk::testutils::Address as _;
@@ -99,7 +100,7 @@ fn test_pay_finalized_invoice_success() {
 
     // Create merchant account
     let merchant_account = env.register(MerchantAccount, ());
-    client.set_merchant_account(&merchant, &merchant_account);
+    client.link_merchant_account(&merchant, &merchant_account);
     use account::account::MerchantAccountClient;
     let merchant_account_client = MerchantAccountClient::new(&env, &merchant_account);
     merchant_account_client.initialize(&merchant, &shade_contract_id, &1_u64);
