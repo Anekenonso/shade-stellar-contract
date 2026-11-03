@@ -156,3 +156,17 @@ pub struct WithdrawalExecutedEvent {
 pub fn publish_withdrawal_executed_event(env: &Env, id: u64, timestamp: u64) {
     (WithdrawalExecutedEvent { id, timestamp }).publish(env);
 }
+
+#[contractevent]
+pub struct WithdrawalThresholdSetEvent {
+    pub threshold: i128,
+    pub timestamp: u64,
+}
+
+pub fn publish_withdrawal_threshold_set_event(env: &Env, threshold: i128, timestamp: u64) {
+    (WithdrawalThresholdSetEvent {
+        threshold,
+        timestamp,
+    })
+    .publish(env);
+}

@@ -1,10 +1,12 @@
-use crate::types::{TokenBalance, WithdrawalAnalytics};
+use crate::types::{AccountInfo, TokenBalance, WithdrawalAnalytics, WithdrawalRequest};
 use soroban_sdk::{contracttrait, Address, Env, Vec};
 
 #[contracttrait]
 pub trait MerchantAccountTrait {
     fn initialize(env: Env, merchant: Address, manager: Address, merchant_id: u64);
     fn get_merchant(env: Env) -> Address;
+    fn get_manager(env: Env) -> Address;
+    fn get_account_info(env: Env) -> AccountInfo;
     fn add_token(env: Env, token: Address);
     fn refund(env: Env, token: Address, amount: i128, to: Address);
     fn has_token(env: Env, token: Address) -> bool;
@@ -20,5 +22,5 @@ pub trait MerchantAccountTrait {
     fn set_withdrawal_threshold(env: Env, threshold: i128);
     fn get_withdrawal_threshold(env: Env) -> i128;
     fn approve_withdrawal(env: Env, request_id: u64);
-    fn get_withdrawal_request(env: Env, request_id: u64) -> crate::types::WithdrawalRequest;
+    fn get_withdrawal_request(env: Env, request_id: u64) -> WithdrawalRequest;
 }
