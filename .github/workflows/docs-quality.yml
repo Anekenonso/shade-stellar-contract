@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "**/*.md"
+      - "!example/**"
       - "lychee.toml"
       - ".github/workflows/docs-quality.yml"
 
