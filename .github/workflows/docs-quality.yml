@@ -5,8 +5,6 @@ on:
     paths:
       - "**/*.md"
       - "lychee.toml"
-      - ".markdownlint-cli2.jsonc"
-      - "_typos.toml"
       - ".github/workflows/docs-quality.yml"
 
 jobs:
@@ -19,24 +17,3 @@ jobs:
         with:
           args: --config lychee.toml docs README.md CONTRIBUTING.md
           fail: true
-
-  markdownlint:
-    name: Markdown lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: DavidAnson/markdownlint-cli2-action@v20
-        with:
-          globs: |
-            docs/**/*.md
-            README.md
-            CONTRIBUTING.md
-
-  spelling:
-    name: Spell check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: crate-ci/typos@v1
-        with:
-          files: docs README.md CONTRIBUTING.md

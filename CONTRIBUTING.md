@@ -190,7 +190,7 @@ A PR that makes a significant design decision (new or restructured contract, fac
 
 ### Docs site and quality checks
 
-Preview the docs site locally with `make docs-serve` (or `mdbook serve docs`) and build it with `make docs`. Docs PRs run link, markdown lint, and spell checks in CI; see [Docs tooling](docs/contributing/docs-tooling.md) for how to run them locally and add dictionary words.
+Preview the docs site locally with `make docs-serve` (or `mdbook serve docs`) and build it with `make docs`. Docs PRs run link checks in CI; see [Docs tooling](docs/contributing/docs-tooling.md) for how to run them locally.
 
 ### Keeping reference docs in sync
 

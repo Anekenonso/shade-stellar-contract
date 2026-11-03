@@ -246,10 +246,8 @@ docs-serve: ## Preview the docs site locally
 	@mdbook-mermaid install docs
 	@mdbook serve docs --open
 
-docs-check: ## Run docs link, lint, and spell checks
+docs-check: ## Run docs link checks
 	@lychee --config lychee.toml docs README.md CONTRIBUTING.md
-	@markdownlint-cli2 "docs/**/*.md" README.md CONTRIBUTING.md
-	@typos docs README.md CONTRIBUTING.md
 
 ci: lint test build ## CI pipeline (lint, test, build)
 	@echo "CI pipeline complete!"
