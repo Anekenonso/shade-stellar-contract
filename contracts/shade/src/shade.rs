@@ -2,9 +2,9 @@ use crate::components::{
     access_control as access_control_component, admin as admin_component,
     analytics as analytics_component, auto_withdrawal as auto_withdrawal_component,
     core as core_component, history as history_component, invoice as invoice_component,
-    merchant as merchant_component, pausable as pausable_component,
-    platform_fee as platform_fee_component, search as search_component,
-    upgrade as upgrade_component,
+    merchant as merchant_component, merchant_account as merchant_account_component,
+    pausable as pausable_component, platform_fee as platform_fee_component,
+    search as search_component, upgrade as upgrade_component,
 };
 use crate::shade_interface::ShadeTrait;
 use crate::types::{
@@ -276,7 +276,12 @@ impl ShadeTrait for Shade {
         merchant_address: Address,
         status: bool,
     ) {
-        merchant_component::restrict_merchant_account(&env, &caller, &merchant_address, status);
+        merchant_account_component::restrict_merchant_account(
+            &env,
+            &caller,
+            &merchant_address,
+            status,
+        );
     }
 
     fn calculate_fee(env: Env, merchant: Address, token: Address, amount: i128) -> i128 {
@@ -330,8 +335,44 @@ impl ShadeTrait for Shade {
         analytics_component::get_merchant_analytics_summary(&env, &merchant)
     }
 
-    fn set_merchant_account(env: Env, merchant: Address, account: Address) {
-        merchant_component::set_merchant_account(&env, &merchant, &account);
+    fn deploy_merchant_account(env: Env, merchant: Address) -> Address {
+        pausable_component::assert_not_paused(&env);
+        merchant_account_component::deploy_merchant_account(&env, &merchant)
+    }
+
+    fn verify_merchant_account(env: Env, admin: Address, merchant_id: u64) {
+        pausable_component::assert_not_paused(&env);
+        merchant_account_component::verify_merchant_account(&env, &admin, merchant_id);
+    }
+
+    fn add_account_token(env: Env, merchant: Address, token: Address) {
+        pausable_component::assert_not_paused(&env);
+        merchant_account_component::add_account_token(&env, &merchant, &token);
+    }
+
+    fn set_account_withdraw_threshold(
+        env: Env,
+        caller: Address,
+        merchant_id: u64,
+        threshold: i128,
+    ) {
+        pausable_component::assert_not_paused(&env);
+        merchant_account_component::set_account_withdraw_threshold(
+            &env,
+            &caller,
+            merchant_id,
+            threshold,
+        );
+    }
+
+    fn approve_account_withdrawal(env: Env, caller: Address, merchant_id: u64, request_id: u64) {
+        pausable_component::assert_not_paused(&env);
+        merchant_account_component::approve_account_withdrawal(
+            &env,
+            &caller,
+            merchant_id,
+            request_id,
+        );
     }
 
     fn get_merchant_account(env: Env, merchant_id: u64) -> Address {

@@ -40,4 +40,6 @@ pub enum ContractError {
     InvoiceNotExpired = 50,
     /// The invoice has already been fully refunded.
     InvoiceAlreadyRefunded = 51,
+    /// The merchant already has an account contract.
+    MerchantAccountAlreadySet = 52,
 }

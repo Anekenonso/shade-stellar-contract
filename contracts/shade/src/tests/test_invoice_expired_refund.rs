@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::shade::{Shade, ShadeClient};
+use crate::tests::support::LinkMerchantAccount as _;
 use crate::types::InvoiceStatus;
 use account::account::{MerchantAccount, MerchantAccountClient};
 use soroban_sdk::testutils::{Address as _, Ledger as _};
@@ -32,7 +33,7 @@ fn setup_paid_invoice_with_expiry(
     let merchant_account_id = env.register(MerchantAccount, ());
     let ma_client = MerchantAccountClient::new(&env, &merchant_account_id);
     ma_client.initialize(&merchant, &shade_id, &1_u64);
-    client.set_merchant_account(&merchant, &merchant_account_id);
+    client.link_merchant_account(&merchant, &merchant_account_id);
 
     let amount = 1_000_i128;
     let description = String::from_str(&env, "Expiring Invoice");
@@ -140,7 +141,7 @@ fn test_claim_refund_no_expiry_fails() {
     let merchant_account_id = env.register(MerchantAccount, ());
     let ma_client = MerchantAccountClient::new(&env, &merchant_account_id);
     ma_client.initialize(&merchant, &shade_id, &1_u64);
-    client.set_merchant_account(&merchant, &merchant_account_id);
+    client.link_merchant_account(&merchant, &merchant_account_id);
 
     let amount = 500_i128;
     let description = String::from_str(&env, "No Expiry Invoice");
@@ -184,7 +185,7 @@ fn test_claim_refund_unpaid_invoice_fails() {
     let merchant_account_id = env.register(MerchantAccount, ());
     let ma_client = MerchantAccountClient::new(&env, &merchant_account_id);
     ma_client.initialize(&merchant, &shade_id, &1_u64);
-    client.set_merchant_account(&merchant, &merchant_account_id);
+    client.link_merchant_account(&merchant, &merchant_account_id);
 
     let description = String::from_str(&env, "Unpaid Invoice");
     let invoice_id = client.create_invoice(&merchant, &description, &500, &token, &Some(5_000));

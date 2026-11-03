@@ -1,15 +1,9 @@
-use crate::components::access_control;
 use crate::components::admin as admin_component;
 use crate::components::core as core_component;
 use crate::errors::ContractError;
 use crate::events;
-use crate::types::{DataKey, Merchant, MerchantFilter, Role};
-use soroban_sdk::{contractclient, panic_with_error, Address, BytesN, Env, String, Vec};
-
-#[contractclient(name = "MerchantAccountClient")]
-pub trait MerchantAccountContract {
-    fn restrict_account(env: Env, status: bool);
-}
+use crate::types::{DataKey, Merchant, MerchantFilter};
+use soroban_sdk::{panic_with_error, Address, BytesN, Env, String, Vec};
 
 pub fn register_merchant(env: &Env, merchant: &Address) {
     merchant.require_auth();
@@ -36,7 +30,6 @@ pub fn register_merchant(env: &Env, merchant: &Address) {
         active: true,
         verified: false,
         date_registered: env.ledger().timestamp(),
-        account: merchant.clone(),
         webhook: String::from_str(env, ""),
         auto_withdrawal_recipient: None,
         auto_withdrawal_thresholds: Vec::new(env),
@@ -260,60 +253,18 @@ pub fn get_merchants(env: &Env, filter: MerchantFilter) -> Vec<Merchant> {
     merchants
 }
 
-pub fn restrict_merchant_account(
-    env: &Env,
-    caller: &Address,
-    merchant_address: &Address,
-    status: bool,
-) {
-    caller.require_auth();
-
-    if !access_control::has_role(env, caller, Role::Admin)
-        && !access_control::has_role(env, caller, Role::Manager)
-    {
-        panic_with_error!(env, ContractError::NotAuthorized);
-    }
-
-    let merchant_id: u64 = env
-        .storage()
-        .persistent()
-        .get(&DataKey::MerchantId(merchant_address.clone()))
-        .unwrap_or_else(|| panic_with_error!(env, ContractError::MerchantNotFound));
-
-    let account_address: Address = env
-        .storage()
-        .persistent()
-        .get(&DataKey::MerchantAccount(merchant_id))
-        .unwrap_or_else(|| merchant_address.clone());
-
-    let client = MerchantAccountClient::new(env, &account_address);
-    client.restrict_account(&status);
-
-    events::publish_account_restricted_event(
-        env,
-        merchant_address.clone(),
-        status,
-        caller.clone(),
-        env.ledger().timestamp(),
-    );
-}
-
-pub fn set_merchant_account(env: &Env, merchant: &Address, account: &Address) {
-    merchant.require_auth();
-
-    if !is_merchant(env, merchant) {
-        panic_with_error!(env, ContractError::MerchantNotFound);
-    }
-
-    let merchant_id: u64 = env
-        .storage()
-        .persistent()
-        .get(&DataKey::MerchantId(merchant.clone()))
-        .unwrap();
-
+/// Point a merchant at its account contract. Only the factory path may call this:
+/// it is what guarantees the hub is the account's manager.
+pub(crate) fn link_account(env: &Env, merchant_id: u64, account: &Address) {
     env.storage()
         .persistent()
         .set(&DataKey::MerchantAccount(merchant_id), account);
+}
+
+pub fn has_merchant_account(env: &Env, merchant_id: u64) -> bool {
+    env.storage()
+        .persistent()
+        .has(&DataKey::MerchantAccount(merchant_id))
 }
 
 pub fn get_merchant_account(env: &Env, merchant_id: u64) -> Address {

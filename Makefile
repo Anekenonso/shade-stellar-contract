@@ -26,7 +26,7 @@ STELLAR_DIR = .stellar
 # Phony Targets
 # ============================================================================
 
-.PHONY: help build test optimize clean fmt lint \
+.PHONY: help build test optimize clean fmt lint fixtures \
 	deploy-shade deploy-account deploy-all \
 	init-shade \
 	pause-shade unpause-shade upgrade-shade \
@@ -77,6 +77,10 @@ optimize: build ## Optimize WASM binaries
 fmt: ## Format code
 	@echo "Formatting code..."
 	@cargo fmt --all
+
+fixtures: ## Rebuild the account WASM fixture used by shade's tests
+	@cargo build -p account --target wasm32v1-none --release
+	@cp target/wasm32v1-none/release/account.wasm contracts/shade/src/tests/fixtures/account.wasm
 
 lint: ## Run clippy linter
 	@echo "Running clippy..."

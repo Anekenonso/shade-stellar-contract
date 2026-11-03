@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::shade::{Shade, ShadeClient};
+use crate::tests::support::LinkMerchantAccount as _;
 use crate::types::InvoiceStatus;
 use account::account::{MerchantAccount, MerchantAccountClient};
 use soroban_sdk::testutils::{Address as _, Events as _, MockAuth, MockAuthInvoke};
@@ -46,7 +47,7 @@ fn setup_test_with_auto_withdrawal() -> (
     let merchant_account_id = env.register(MerchantAccount, ());
     let merchant_account = MerchantAccountClient::new(&env, &merchant_account_id);
     merchant_account.initialize(&merchant, &shade_contract_id, &1_u64);
-    shade_client.set_merchant_account(&merchant, &merchant_account_id);
+    shade_client.link_merchant_account(&merchant, &merchant_account_id);
 
     (
         env,

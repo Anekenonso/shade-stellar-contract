@@ -68,7 +68,6 @@ pub struct Merchant {
     pub active: bool,
     pub verified: bool,
     pub date_registered: u64,
-    pub account: Address,
     pub webhook: String,
     /// Optional recipient for auto-withdrawals. Defaults to the merchant
     /// address when unset.

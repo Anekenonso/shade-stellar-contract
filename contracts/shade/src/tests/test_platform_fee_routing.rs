@@ -2,6 +2,7 @@
 
 use crate::errors::ContractError;
 use crate::shade::{Shade, ShadeClient};
+use crate::tests::support::LinkMerchantAccount as _;
 use crate::types::InvoiceStatus;
 use soroban_sdk::testutils::{Address as _, Events as _, Ledger as _};
 use soroban_sdk::{token, Address, Env, Map, String, Symbol, TryIntoVal, Val};
@@ -50,7 +51,7 @@ fn register_merchant(f: &Fixture) -> (Address, Address) {
     let merchant = Address::generate(&f.env);
     let merchant_account = Address::generate(&f.env);
     f.client.register_merchant(&merchant);
-    f.client.set_merchant_account(&merchant, &merchant_account);
+    f.client.link_merchant_account(&merchant, &merchant_account);
     (merchant, merchant_account)
 }
 

@@ -115,7 +115,11 @@ pub trait ShadeTrait {
     fn get_merchant_volume(env: Env, merchant: Address, token: Address) -> i128;
     fn get_merchant_analytics(env: Env, merchant: Address, token: Address) -> MerchantAnalytics;
     fn get_merchant_analytics_summary(env: Env, merchant: Address) -> MerchantAnalyticsSummary;
-    fn set_merchant_account(env: Env, merchant: Address, account: Address);
+    fn deploy_merchant_account(env: Env, merchant: Address) -> Address;
+    fn verify_merchant_account(env: Env, admin: Address, merchant_id: u64);
+    fn add_account_token(env: Env, merchant: Address, token: Address);
+    fn set_account_withdraw_threshold(env: Env, caller: Address, merchant_id: u64, threshold: i128);
+    fn approve_account_withdrawal(env: Env, caller: Address, merchant_id: u64, request_id: u64);
     fn get_merchant_account(env: Env, merchant_id: u64) -> Address;
     fn set_auto_withdrawal_threshold(env: Env, merchant: Address, token: Address, threshold: i128);
     fn get_auto_withdrawal_threshold(env: Env, merchant_id: u64, token: Address) -> Option<i128>;

@@ -7,6 +7,7 @@ pub mod core;
 pub mod history;
 pub mod invoice;
 pub mod merchant;
+pub mod merchant_account;
 pub mod pausable;
 pub mod payment;
 pub mod platform_fee;

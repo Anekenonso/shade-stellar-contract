@@ -2,6 +2,7 @@
 extern crate std;
 
 use crate::shade::{Shade, ShadeClient};
+use crate::tests::support::LinkMerchantAccount as _;
 use account::account::{MerchantAccount, MerchantAccountClient};
 use soroban_sdk::testutils::{Address as _, Ledger};
 use soroban_sdk::{Address, Env, String};
@@ -43,7 +44,7 @@ fn setup(env: &Env) -> (Address, ShadeClient<'_>, Address, Address, Address, Add
     let merchant_account = env.register(MerchantAccount, ());
     let merchant_account_client = MerchantAccountClient::new(env, &merchant_account);
     merchant_account_client.initialize(&merchant, &contract_id, &1_u64);
-    client.set_merchant_account(&merchant, &merchant_account);
+    client.link_merchant_account(&merchant, &merchant_account);
 
     (admin, client, token1, token2, merchant, merchant_account)
 }
@@ -67,7 +68,7 @@ fn setup_multi_merchant(
     client.verify_merchant(&admin, &2, &true);
 
     let merchant2_account = Address::generate(env);
-    client.set_merchant_account(&merchant2, &merchant2_account);
+    client.link_merchant_account(&merchant2, &merchant2_account);
 
     (
         admin,

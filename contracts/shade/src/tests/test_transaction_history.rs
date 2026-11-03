@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::shade::{Shade, ShadeClient};
+use crate::tests::support::LinkMerchantAccount as _;
 use crate::types::TransactionType;
 use soroban_sdk::testutils::Address as _;
 use soroban_sdk::{token, Address, Env, String};
@@ -31,7 +32,7 @@ fn test_invoice_payment_records_history() {
     let merchant = Address::generate(&env);
     shade_client.register_merchant(&merchant);
     let merchant_account = Address::generate(&env);
-    shade_client.set_merchant_account(&merchant, &merchant_account);
+    shade_client.link_merchant_account(&merchant, &merchant_account);
 
     let description = String::from_str(&env, "History Test");
     let invoice_id = shade_client.create_invoice(&merchant, &description, &1000, &token, &None);
@@ -61,7 +62,7 @@ fn test_multiple_payments_record_history() {
     let merchant = Address::generate(&env);
     shade_client.register_merchant(&merchant);
     let merchant_account = Address::generate(&env);
-    shade_client.set_merchant_account(&merchant, &merchant_account);
+    shade_client.link_merchant_account(&merchant, &merchant_account);
 
     let customer = Address::generate(&env);
     let token_client = token::StellarAssetClient::new(&env, &token);
