@@ -1,5 +1,8 @@
 #![no_std]
 
+#[cfg(feature = "from-shade")]
+pub mod from_shade;
+
 mod errors;
 #[cfg(test)]
 mod test_integration;

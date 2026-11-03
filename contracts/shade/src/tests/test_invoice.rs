@@ -58,11 +58,11 @@ fn create_test_token(env: &Env) -> Address {
 fn mark_invoice_paid(
     env: &Env,
     shade_contract_id: &Address,
-    merchant: &Address,
+    _merchant: &Address,
     invoice_id: u64,
     payer: &Address,
     date_paid: u64,
-    merchant_account_id: &Address,
+    _merchant_account_id: &Address,
     client: &ShadeClient<'_>,
 ) {
     let mut invoice = client.get_invoice(&invoice_id);
@@ -74,10 +74,6 @@ fn mark_invoice_paid(
         env.storage()
             .persistent()
             .set(&DataKey::Invoice(invoice_id), &invoice);
-        env.storage().persistent().set(
-            &DataKey::MerchantBalance(merchant.clone()),
-            merchant_account_id,
-        );
     });
 }
 

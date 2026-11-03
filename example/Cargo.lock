@@ -3,6 +3,13 @@
 version = 4
 
 [[package]]
+name = "account"
+version = "0.0.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -291,6 +298,8 @@ dependencies = [
 name = "crowdfund"
 version = "0.0.0"
 dependencies = [
+ "account",
+ "shade",
  "soroban-sdk",
 ]
 
@@ -600,6 +609,8 @@ checksum = "2bfcf67fea2815c2fc3b90873fae90957be12ff417335dfadc7f52927feb03b2"
 name = "escrow"
 version = "0.0.0"
 dependencies = [
+ "account",
+ "shade",
  "soroban-sdk",
 ]
 
@@ -1000,6 +1011,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "platform_extras"
+version = "0.0.0"
+dependencies = [
+ "account",
+ "shade",
+ "soroban-sdk",
+]
+
+[[package]]
 name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1275,6 +1295,14 @@ checksum = "77fd7028345d415a4034cf8777cd4f8ab1851274233b45f84e3d955502d93874"
 dependencies = [
  "digest",
  "keccak",
+]
+
+[[package]]
+name = "shade"
+version = "0.0.0"
+dependencies = [
+ "account",
+ "soroban-sdk",
 ]
 
 [[package]]
@@ -1574,6 +1602,8 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 name = "subscription"
 version = "0.0.0"
 dependencies = [
+ "account",
+ "shade",
  "soroban-sdk",
 ]
 
@@ -1640,6 +1670,8 @@ dependencies = [
 name = "ticketing"
 version = "0.0.0"
 dependencies = [
+ "account",
+ "shade",
  "soroban-sdk",
 ]
 

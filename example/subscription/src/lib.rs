@@ -1,6 +1,10 @@
 #![no_std]
+
 // Subscription/plan entrypoints legitimately take more than 7 arguments.
 #![allow(clippy::too_many_arguments)]
+
+#[cfg(feature = "from-shade")]
+pub mod from_shade;
 
 mod errors;
 #[cfg(test)]
