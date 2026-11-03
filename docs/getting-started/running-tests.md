@@ -14,7 +14,7 @@ Tests compile and run against the **native** build, not WASM. You do not need th
 cargo test --workspace --all-features
 ```
 
-This is exactly what CI runs ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)). `--all-features` matters: each contract crate enables the SDK's `testutils` feature through its `[dev-dependencies]`, and helpers like `Address::generate` and `env.mock_all_auths()` do not exist without it.
+This is exactly what CI runs ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)). The `example/` workspace is not included. `--all-features` matters: each contract crate enables the SDK's `testutils` feature through its `[dev-dependencies]`, and helpers like `Address::generate` and `env.mock_all_auths()` do not exist without it.
 
 The [`Makefile`](../../Makefile) wraps this as `make test`.
 
@@ -23,7 +23,6 @@ The [`Makefile`](../../Makefile) wraps this as `make test`.
 ```bash
 cargo test -p shade
 cargo test -p account
-cargo test -p escrow
 ```
 
 `-p <crate-name>` works from anywhere in the workspace and takes the `[package].name` from that crate's `Cargo.toml`. The equivalent long form is:
@@ -56,8 +55,6 @@ cargo test -p shade tests::test_upgrade::test_state_persists_after_upgrade -- --
 For crates using the `tests/` directory layout, each file is its own binary and `--test` selects it by file stem:
 
 ```bash
-cargo test -p escrow --test test_release
-cargo test -p crowdfund --test test_feature_225
 ```
 
 ### Useful flags
@@ -70,15 +67,15 @@ cargo test -p crowdfund --test test_feature_225
 | `--no-fail-fast` | Keeps going after a crate fails, so you see every failure in one run. |
 | `-- --test-threads=1` | Serializes tests; useful when you are reading interleaved output. |
 
-## The two test layouts
+## Test layout
 
-The workspace uses two layouts, and which one a crate uses determines what a test can see.
+Tests live inside each crate.
 
 ### In-crate unit tests (`src/tests/mod.rs`)
 
 Test modules live inside the crate's own source tree and are compiled as part of the crate under `#[cfg(test)]`. They can reach private items, internal components, and storage keys directly.
 
-Crates on this layout: **`shade`**, **`account`**, **`crowdfund`**, **`crowdfund_factory`**.
+Both crates use this layout.
 
 It has three levels. The crate root declares the module:
 
@@ -115,56 +112,6 @@ let stored_admin: Address = env.as_contract(&contract_id, || {
     env.storage().persistent().get(&DataKey::Admin).unwrap()
 });
 ```
-
-A simpler variant of the same layout skips the `tests/` subdirectory and declares flat files straight from `lib.rs`. **`subscription`**, **`ticketing`**, and **`ticketing_factory`** do this:
-
-```rust
-// contracts/subscription/src/lib.rs
-#[cfg(test)]
-mod test_grace;
-#[cfg(test)]
-mod test_integration;
-#[cfg(test)]
-mod test_refund;
-#[cfg(test)]
-mod test_upgrades_downgrades;
-```
-
-Those files start with `use super::*;` rather than `crate::` paths, since they sit directly beneath the crate root.
-
-### Integration tests (`tests/`)
-
-A crate-level `tests/` directory sits beside `src/`. Cargo compiles each file there as a **separate binary that links the crate as an external dependency**, so it sees only the crate's public API — exactly what a downstream integrator sees.
-
-Crates on this layout: **`escrow`** ([`contracts/escrow/tests/`](../../contracts/escrow/tests/)) and **`crowdfund`** ([`contracts/crowdfund/tests/`](../../contracts/crowdfund/tests/)).
-
-```rust
-// contracts/escrow/tests/test_initialization.rs
-use escrow::{EscrowContract, EscrowContractClient, EscrowStatus};
-use soroban_sdk::testutils::Address as _;
-use soroban_sdk::{Address, Env};
-
-#[test]
-fn test_escrow_creation_initial_state() {
-    let env = Env::default();
-    env.mock_all_auths();
-
-    let contract_id = env.register(EscrowContract, ());
-    let client = EscrowContractClient::new(&env, &contract_id);
-    // …
-}
-```
-
-Note the differences from the in-crate form: the import is `use escrow::…` (the crate name, not `crate::`), there is no `#![cfg(test)]` and no registration in a `mod.rs`, and anything not `pub` in `escrow` is unreachable. `EscrowContract`'s private `DataKey` enum, for instance, cannot be touched from here.
-
-### Which layout to use
-
-| Use | When |
-|---|---|
-| `src/tests/` (or flat `src/test_*.rs`) | You need to assert on internal state, call a component function directly, or exercise a private helper. This is the default for new tests in `shade` and `account`. |
-| `tests/` | You are testing the contract strictly through its exported client, or verifying that a type or function is actually public. |
-
-> **Note:** [`contracts/escrow/src/test.rs`](../../contracts/escrow/src/test.rs) and [`contracts/escrow/src/integration_test.rs`](../../contracts/escrow/src/integration_test.rs) exist on disk but are not declared in [`contracts/escrow/src/lib.rs`](../../contracts/escrow/src/lib.rs), so Cargo never compiles or runs them. `escrow`'s live tests are the three files under `contracts/escrow/tests/`. Don't add to the orphaned files.
 
 ## Test snapshots
 
@@ -248,7 +195,7 @@ let env = Env::new_with_config(EnvTestConfig {
 ### Naming and registration
 
 1. Name the file `test_<subject>.rs` — `test_invoice_expiry.rs`, `test_platform_fee.rs`. Feature-numbered names (`test_feature_211.rs`) exist for work tracked to a specific issue; prefer a descriptive name for anything else.
-2. Put it in `src/tests/` for `shade`, `account`, `crowdfund`, and `crowdfund_factory`; in `tests/` for `escrow`.
+2. Put it in `src/tests/`.
 3. Start an in-crate file with `#![cfg(test)]` as its first line.
 4. **Register it.** In `src/tests/`, add a `pub mod test_<subject>;` line to that crate's `mod.rs`. An unregistered file compiles as nothing and silently runs zero tests. Files under `tests/` need no registration.
 5. Name each test function `test_<behavior>` and make the name describe the assertion, not the call: `test_state_persists_after_upgrade`, not `test_upgrade_2`.

@@ -2,7 +2,7 @@
 
 The standalone `subscription` contract (`contracts/subscription/`) never custodies a customer's tokens directly — every recurring charge is pulled through a standard token allowance the customer grants to the contract. This page documents how a customer authorizes billing, how that allowance is consumed cycle by cycle, and what happens when it runs out or the plan's price changes.
 
-> **Note:** This page covers the standalone `subscription` crate, not the Shade hub's own subscription feature. See [Subscriptions and recurring billing](./subscriptions.md) for the hub's `charge_subscription` flow, and [Subscription contract reference](../contracts/subscription.md) for the full function/type/error listing this page builds on.
+> **Note:** This page covers the standalone `subscription` crate, not the Shade hub's own subscription feature. See [Subscriptions and recurring billing](subscriptions.md) for the hub's `charge_subscription` flow, and [Subscription contract reference](../contracts/subscription.md) for the full function/type/error listing this page builds on.
 
 ## Why it exists
 
@@ -12,7 +12,7 @@ Recurring billing needs a way for a customer to pre-authorize many future charge
 
 ### `authorize_billing(customer, sub_id, cycles)`
 
-[`contracts/subscription/src/lib.rs`](../../contracts/subscription/src/lib.rs#L390-L407)
+[`contracts/subscription/src/lib.rs`](../../subscription/src/lib.rs)
 
 ```rust
 pub fn authorize_billing(env: Env, customer: Address, sub_id: u64, cycles: u32)
@@ -28,7 +28,7 @@ Calling `authorize_billing` again **replaces** the allowance rather than adding 
 
 ### `get_billing_allowance(customer, sub_id)`
 
-[`contracts/subscription/src/lib.rs`](../../contracts/subscription/src/lib.rs#L409-L419)
+[`contracts/subscription/src/lib.rs`](../../subscription/src/lib.rs)
 
 ```rust
 pub fn get_billing_allowance(env: Env, customer: Address, sub_id: u64) -> i128
@@ -40,7 +40,7 @@ pub fn get_billing_allowance(env: Env, customer: Address, sub_id: u64) -> i128
 
 ### `revoke_billing_authorization(customer, sub_id)`
 
-[`contracts/subscription/src/lib.rs`](../../contracts/subscription/src/lib.rs#L421-L436)
+[`contracts/subscription/src/lib.rs`](../../subscription/src/lib.rs)
 
 ```rust
 pub fn revoke_billing_authorization(env: Env, customer: Address, sub_id: u64)
@@ -63,11 +63,11 @@ When a charge is attempted and the live allowance is below `plan.amount`:
 - **Strict `charge(sub_id)`** panics `InsufficientAllowance` immediately. Nothing changes — the subscription stays in its prior status.
 - **Forgiving `process_charge(sub_id)` / `process_billing_cycle(sub_ids)`** never panic for this reason. Instead they drive the grace-period state machine: if the plan has `grace_period > 0`, the subscription moves to `PastDue` and the call returns `ChargeOutcome::EnteredGrace`; if `grace_period == 0`, the subscription is terminated immediately and the call returns `ChargeOutcome::Terminated`.
 
-See [Subscription grace periods and past-due handling](./subscription-grace-periods.md) for the full `PastDue`/`Terminated` lifecycle, recovery rules, and the events each transition does (or doesn't) emit.
+See [Subscription grace periods and past-due handling](subscription-grace-periods.md) for the full `PastDue`/`Terminated` lifecycle, recovery rules, and the events each transition does (or doesn't) emit.
 
 ## Effect of `update_plan_amount` on existing allowances
 
-`update_plan_amount(merchant, plan_id, new_amount)` ([`contracts/subscription/src/lib.rs`](../../contracts/subscription/src/lib.rs#L178-L191)) only writes `Plan.amount`. It touches no `Subscription` record and makes no token call — every allowance any customer has already granted via `authorize_billing` is completely unaffected by this call, for better or worse:
+`update_plan_amount(merchant, plan_id, new_amount)` ([`contracts/subscription/src/lib.rs`](../../subscription/src/lib.rs)) only writes `Plan.amount`. It touches no `Subscription` record and makes no token call — every allowance any customer has already granted via `authorize_billing` is completely unaffected by this call, for better or worse:
 
 - **Price increase:** a customer who authorized `12 * old_amount` now has an allowance that, at `new_amount` per cycle, covers fewer than 12 charges. The next charge still succeeds as long as the live allowance is `>= new_amount`; the shortfall only surfaces once consumption catches up with the smaller effective cycle count, at which point the customer silently enters grace (or gets terminated, on a zero-grace plan) with no on-chain signal that the cause was a price change rather than inattention.
 - **Price decrease:** the same allowance now covers more than 12 charges at the new, lower rate — harmless, just an under-used authorization.
@@ -77,7 +77,7 @@ See [Subscription grace periods and past-due handling](./subscription-grace-peri
 
 ## Client example: subscribe and authorize 12 monthly cycles
 
-This example uses the generated TypeScript bindings pattern described in [Generating and using contract bindings](../guides/contract-bindings.md), applied to the standalone `subscription` contract. It performs both calls (`subscribe`, then `authorize_billing`) in one user flow, since a freshly created subscription has no allowance until the customer explicitly grants one.
+This example uses the generated TypeScript bindings pattern described in [Generating and using contract bindings](../../../docs/guides/contract-bindings.md), applied to the standalone `subscription` contract. It performs both calls (`subscribe`, then `authorize_billing`) in one user flow, since a freshly created subscription has no allowance until the customer explicitly grants one.
 
 ```typescript
 import { Client } from "./bindings/subscription/src/index.js";
@@ -122,12 +122,12 @@ async function subscribeAndAuthorize(customerAddress: string, signTransaction: (
 }
 ```
 
-As with every write call in the generated client, `subscribe` and `authorize_billing` return an `AssembledTransaction` — call `.signAndSend({ signTransaction })` with your wallet's signing callback, never a hardcoded key (see [Using the generated client in an application](../guides/contract-bindings.md#using-the-generated-client-in-an-application)).
+As with every write call in the generated client, `subscribe` and `authorize_billing` return an `AssembledTransaction` — call `.signAndSend({ signTransaction })` with your wallet's signing callback, never a hardcoded key (see [Using the generated client in an application](../../../docs/guides/contract-bindings.md#using-the-generated-client-in-an-application)).
 
 ## Related pages
 
 - [Subscription contract reference](../contracts/subscription.md) — full type, function, lifecycle, and error listing for this contract.
-- [Subscription grace periods and past-due handling](./subscription-grace-periods.md) — what happens after an authorized allowance runs out.
+- [Subscription grace periods and past-due handling](subscription-grace-periods.md) — what happens after an authorized allowance runs out.
 - [Billing Keeper Operator Guide](../operations/billing-keeper.md) — running the off-chain process that calls `charge`/`process_charge`/`process_billing_cycle`.
-- [Generating and using contract bindings](../guides/contract-bindings.md) — the TypeScript client pattern used above.
-- [Subscriptions and recurring billing](./subscriptions.md) — the Shade hub's own, separate subscription feature.
+- [Generating and using contract bindings](../../../docs/guides/contract-bindings.md) — the TypeScript client pattern used above.
+- [Subscriptions and recurring billing](subscriptions.md) — the Shade hub's own, separate subscription feature.

@@ -299,25 +299,25 @@ Deactivating a plan is therefore a merchant-level decision to stop accepting new
 
 | Type / key                   | Defined in                                                           | Purpose                                  |
 | ---------------------------- | -------------------------------------------------------------------- | ---------------------------------------- |
-| `SubscriptionPlan`           | [`contracts/shade/src/types.rs`](../../contracts/shade/src/types.rs) | Stores recurring plan configuration      |
-| `Subscription`               | [`contracts/shade/src/types.rs`](../../contracts/shade/src/types.rs) | Stores an individual customer enrollment |
-| `SubscriptionStatus`         | [`contracts/shade/src/types.rs`](../../contracts/shade/src/types.rs) | Represents subscription lifecycle        |
-| `DataKey::SubscriptionPlan`  | [`contracts/shade/src/types.rs`](../../contracts/shade/src/types.rs) | Persistent plan storage                  |
-| `DataKey::Subscription`      | [`contracts/shade/src/types.rs`](../../contracts/shade/src/types.rs) | Persistent subscription storage          |
-| `DataKey::PlanCount`         | [`contracts/shade/src/types.rs`](../../contracts/shade/src/types.rs) | Plan ID counter                          |
-| `DataKey::SubscriptionCount` | [`contracts/shade/src/types.rs`](../../contracts/shade/src/types.rs) | Subscription ID counter                  |
+| `SubscriptionPlan`           | [`contracts/shade/src/types.rs`](../../../contracts/shade/src/types.rs) | Stores recurring plan configuration      |
+| `Subscription`               | [`contracts/shade/src/types.rs`](../../../contracts/shade/src/types.rs) | Stores an individual customer enrollment |
+| `SubscriptionStatus`         | [`contracts/shade/src/types.rs`](../../../contracts/shade/src/types.rs) | Represents subscription lifecycle        |
+| `DataKey::SubscriptionPlan`  | [`contracts/shade/src/types.rs`](../../../contracts/shade/src/types.rs) | Persistent plan storage                  |
+| `DataKey::Subscription`      | [`contracts/shade/src/types.rs`](../../../contracts/shade/src/types.rs) | Persistent subscription storage          |
+| `DataKey::PlanCount`         | [`contracts/shade/src/types.rs`](../../../contracts/shade/src/types.rs) | Plan ID counter                          |
+| `DataKey::SubscriptionCount` | [`contracts/shade/src/types.rs`](../../../contracts/shade/src/types.rs) | Subscription ID counter                  |
 
 ## Relevant functions
 
 | Function                   | Defined in                                                                                               | Authorization / purpose                     |
 | -------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| `create_subscription_plan` | [`contracts/shade/src/components/subscription.rs`](../../contracts/shade/src/components/subscription.rs) | Merchant creates an active plan             |
-| `get_subscription_plan`    | [`contracts/shade/src/components/subscription.rs`](../../contracts/shade/src/components/subscription.rs) | Reads a plan                                |
-| `subscribe`                | [`contracts/shade/src/components/subscription.rs`](../../contracts/shade/src/components/subscription.rs) | Customer creates an active subscription     |
-| `get_subscription`         | [`contracts/shade/src/components/subscription.rs`](../../contracts/shade/src/components/subscription.rs) | Reads a subscription                        |
-| `charge_subscription`      | [`contracts/shade/src/components/subscription.rs`](../../contracts/shade/src/components/subscription.rs) | Executes a due recurring charge             |
-| `cancel_subscription`      | [`contracts/shade/src/components/subscription.rs`](../../contracts/shade/src/components/subscription.rs) | Customer or merchant cancels a subscription |
-| `deactivate_plan`          | [`contracts/shade/src/components/subscription.rs`](../../contracts/shade/src/components/subscription.rs) | Merchant stops new subscriptions            |
+| `create_subscription_plan` | [`contracts/shade/src/components/subscription.rs`](../../subscription/src/from_shade/subscription.rs) | Merchant creates an active plan             |
+| `get_subscription_plan`    | [`contracts/shade/src/components/subscription.rs`](../../subscription/src/from_shade/subscription.rs) | Reads a plan                                |
+| `subscribe`                | [`contracts/shade/src/components/subscription.rs`](../../subscription/src/from_shade/subscription.rs) | Customer creates an active subscription     |
+| `get_subscription`         | [`contracts/shade/src/components/subscription.rs`](../../subscription/src/from_shade/subscription.rs) | Reads a subscription                        |
+| `charge_subscription`      | [`contracts/shade/src/components/subscription.rs`](../../subscription/src/from_shade/subscription.rs) | Executes a due recurring charge             |
+| `cancel_subscription`      | [`contracts/shade/src/components/subscription.rs`](../../subscription/src/from_shade/subscription.rs) | Customer or merchant cancels a subscription |
+| `deactivate_plan`          | [`contracts/shade/src/components/subscription.rs`](../../subscription/src/from_shade/subscription.rs) | Merchant stops new subscriptions            |
 
 ## Constraints and edge cases
 
@@ -336,7 +336,7 @@ Deactivating a plan is therefore a merchant-level decision to stop accepting new
 
 ## Related pages
 
-* [Choosing a subscription model](./choosing-a-subscription-model.md)
-* [Escrow](./escrow.md)
-* [Token whitelisting](./token-whitelisting.md)
-* [Fiat pricing and oracles](./fiat-pricing-and-oracles.md)
+* [Choosing a subscription model](choosing-a-subscription-model.md)
+* [Escrow](escrow.md)
+* [Token whitelisting](../../../docs/concepts/token-whitelisting.md)
+* [Fiat pricing and oracles](../../../docs/concepts/fiat-pricing-and-oracles.md)

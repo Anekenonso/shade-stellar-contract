@@ -4,7 +4,7 @@ Shade ships two independent subscription systems: a simple one built into the hu
 
 ## Why it exists
 
-Both systems expose plans, subscribing, and charging, so the names look interchangeable. They are not. They share no code, types, storage, or runtime calls, and a [merchant](../glossary.md#merchant) cannot mix them for one billing relationship. Pick one per relationship before you build.
+Both systems expose plans, subscribing, and charging, so the names look interchangeable. They are not. They share no code, types, storage, or runtime calls, and a [merchant](../../../docs/glossary.md#merchant) cannot mix them for one billing relationship. Pick one per relationship before you build.
 
 ## Decision summary
 
@@ -16,20 +16,20 @@ Both systems expose plans, subscribing, and charging, so the names look intercha
 | Capability | Hub (`shade`) | Standalone (`subscription`) |
 |---|---|---|
 | Entry points | `create_subscription_plan`, `subscribe`, `charge_subscription`, `cancel_subscription`, `deactivate_plan` | `create_plan`, `subscribe`, `subscribe_with_token`, `charge`, `process_charge`, `process_billing_cycle`, `cancel_subscription`, `cancel_with_prorated_refund`, and more |
-| Who can create a plan | A registered [merchant](../glossary.md#merchant) (`MerchantNotFound` otherwise). Token must be on the hub whitelist. | Any address that authorizes. Token must be on the contract's own `AcceptedTokens`, set by its admin. |
+| Who can create a plan | A registered [merchant](../../../docs/glossary.md#merchant) (`MerchantNotFound` otherwise). Token must be on the hub whitelist. | Any address that authorizes. Token must be on the contract's own `AcceptedTokens`, set by its admin. |
 | Plan management | Create and deactivate only. `amount`, `interval`, and `token` are fixed at creation. | `update_plan_amount`, `update_plan_interval`, `set_plan_grace_period`, `deactivate_plan` |
-| Billing authorization | The customer approves the **hub contract** as a token spender directly on the token. There is no authorize or revoke function. | `authorize_billing(customer, sub_id, cycles)`, `get_billing_allowance`, `revoke_billing_authorization`, with the **subscription contract** as spender. See [billing authorization](./subscription-billing-authorization.md). |
+| Billing authorization | The customer approves the **hub contract** as a token spender directly on the token. There is no authorize or revoke function. | `authorize_billing(customer, sub_id, cycles)`, `get_billing_allowance`, `revoke_billing_authorization`, with the **subscription contract** as spender. See [billing authorization](subscription-billing-authorization.md). |
 | Who triggers a charge | Anyone. `charge_subscription` takes no caller and no auth. | Anyone, for `charge`, `process_charge`, and `process_billing_cycle`. |
 | First charge | Available immediately (`last_charged` starts at `0`). | Gated by `Plan.trial_period` from the subscription's `created_at`. |
 | Failed charge | Panics. The transaction reverts and the subscription stays `Active`. | `charge` panics with `InsufficientAllowance`. `process_charge` and `process_billing_cycle` move the subscription to `PastDue` instead. |
-| Grace periods | None. Statuses are `Active` and `Cancelled` only. | Yes. `Active`, `Cancelled`, `PastDue`, `Terminated`. See [grace periods](./subscription-grace-periods.md). |
+| Grace periods | None. Statuses are `Active` and `Cancelled` only. | Yes. `Active`, `Cancelled`, `PastDue`, `Terminated`. See [grace periods](subscription-grace-periods.md). |
 | Prorated refunds | None. | `cancel_with_prorated_refund` and `quote_prorated_refund`. Floor division on `amount * remaining / interval`. |
 | Upgrade and downgrade | None. | `upgrade_subscription` (immediate, prorated) and `downgrade_subscription` (deferred to the next charge). |
 | Batch processing | None. One `charge_subscription` call per subscription. | `process_billing_cycle(sub_ids)` returns one `ChargeOutcome` per ID and skips terminal entries instead of aborting. |
 | Multi-token | Plan token only. | Per-subscription `preferred_token` via `subscribe_with_token` and `set_preferred_token`. |
 | Platform fee | Yes. `route_from_allowance` splits each charge by the effective fee in basis points. Fee is taken out of `plan.amount`. | None. 100% of `plan.amount` goes to the recipient. |
 | Settlement destination | The merchant's account contract (`get_merchant_account`) and the platform account. | `plan.creator` if set, otherwise `plan.merchant`. |
-| Analytics and history | Counted in merchant and [token analytics](./token-analytics.md), and recorded in the customer's transaction log as `SubscriptionCharge`. | Not recorded in hub analytics or history. |
+| Analytics and history | Counted in merchant and [token analytics](../../../docs/concepts/token-analytics.md), and recorded in the customer's transaction log as `SubscriptionCharge`. | Not recorded in hub analytics or history. |
 | Cancellation | Customer or plan merchant, from `Active` only. | Customer or plan merchant, from `Active` or `PastDue`. |
 | Search | `search_subscription_plans` and `search_subscriptions` on the hub. | `get_plan`, `get_plan_count`, `get_subscription`. No filtered search. |
 | Upgradeable | Yes, through the hub upgrade flow. | No. Immutable once deployed. |
@@ -38,8 +38,8 @@ Both systems expose plans, subscribing, and charging, so the names look intercha
 
 | Concept | Hub | Standalone |
 |---|---|---|
-| Plan | `SubscriptionPlan { id, merchant_id, merchant, description, token, amount, interval, active }` in [`contracts/shade/src/types.rs#L491`](../../contracts/shade/src/types.rs#L491) | `Plan` in [`contracts/subscription/src/types.rs#L34`](../../contracts/subscription/src/types.rs#L34), adds `created_at`, `grace_period`, `creator`, `trial_period` and has no `merchant_id` |
-| Subscription | `Subscription { id, plan_id, customer, merchant_id, status, date_created, last_charged }` in [`contracts/shade/src/types.rs#L511`](../../contracts/shade/src/types.rs#L511) | `Subscription` in [`contracts/subscription/src/types.rs#L56`](../../contracts/subscription/src/types.rs#L56), adds `past_due_since`, `pending_downgrade_plan_id`, `preferred_token`, and names the timestamp `created_at` |
+| Plan | `SubscriptionPlan { id, merchant_id, merchant, description, token, amount, interval, active }` in [`contracts/shade/src/types.rs#L491`](../../../contracts/shade/src/types.rs) | `Plan` in [`contracts/subscription/src/types.rs#L34`](../../subscription/src/types.rs), adds `created_at`, `grace_period`, `creator`, `trial_period` and has no `merchant_id` |
+| Subscription | `Subscription { id, plan_id, customer, merchant_id, status, date_created, last_charged }` in [`contracts/shade/src/types.rs#L511`](../../../contracts/shade/src/types.rs) | `Subscription` in [`contracts/subscription/src/types.rs#L56`](../../subscription/src/types.rs), adds `past_due_since`, `pending_downgrade_plan_id`, `preferred_token`, and names the timestamp `created_at` |
 | Status | `SubscriptionStatus { Active = 0, Cancelled = 1 }` | `SubscriptionStatus { Active = 0, Cancelled = 1, PastDue = 2, Terminated = 3 }` |
 | Merchant identity | Numeric `merchant_id` from the registry | Plain `Address` |
 | IDs | Sequential `u64`, per contract | Sequential `u64`, per contract. The same number can mean different things in each system. |
@@ -57,7 +57,7 @@ Both systems expose plans, subscribing, and charging, so the names look intercha
 | Plan deactivated | `PlanDeactivatedEvent` | None |
 | Terminated after grace | Not applicable | `SubExpired` |
 
-An indexer must treat the two contracts as separate sources. See [Indexing events](../guides/indexing-events.md).
+An indexer must treat the two contracts as separate sources. See [Indexing events](../../../docs/guides/indexing-events.md).
 
 ## Recommendations by use case
 
@@ -68,7 +68,7 @@ An indexer must treat the two contracts as separate sources. See [Indexing event
 | Tiered SaaS with plan changes | Standalone | The only system with `upgrade_subscription` and `downgrade_subscription`. |
 | Free trial before the first charge | Standalone | The hub charges immediately. |
 | Refund unused time on cancellation | Standalone | The hub has no refund path. |
-| Usage-adjacent billing (variable amount per period) | Neither fully | Both charge a fixed `plan.amount`. The standalone contract allows `update_plan_amount` between cycles, which lets a keeper adjust a plan, but that changes the price for every subscriber of the plan. Bill true usage through [invoices](./invoice-lifecycle.md). |
+| Usage-adjacent billing (variable amount per period) | Neither fully | Both charge a fixed `plan.amount`. The standalone contract allows `update_plan_amount` between cycles, which lets a keeper adjust a plan, but that changes the price for every subscriber of the plan. Bill true usage through [invoices](../../../docs/concepts/invoice-lifecycle.md). |
 | Customer-selectable payment token | Standalone | `subscribe_with_token` and `set_preferred_token`. |
 | Revenue must appear in Shade dashboards and token share | Hub | Only hub charges are recorded. |
 
@@ -108,9 +108,9 @@ The code and existing docs establish that the two systems are parallel, with no 
 
 ## Related pages
 
-- [Subscriptions and recurring billing](./subscriptions.md)
+- [Subscriptions and recurring billing](subscriptions.md)
 - [Subscription contract reference](../contracts/subscription.md)
-- [Subscription billing authorization and allowances](./subscription-billing-authorization.md)
-- [Subscription grace periods and past-due handling](./subscription-grace-periods.md)
+- [Subscription billing authorization and allowances](subscription-billing-authorization.md)
+- [Subscription grace periods and past-due handling](subscription-grace-periods.md)
 - [Billing keeper operator guide](../operations/billing-keeper.md)
-- [Token analytics and market share metrics](./token-analytics.md)
+- [Token analytics and market share metrics](../../../docs/concepts/token-analytics.md)

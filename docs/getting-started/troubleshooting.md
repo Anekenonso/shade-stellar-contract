@@ -24,7 +24,7 @@ Each entry gives the **symptom** (the error text to search for), the **cause**, 
 
 ```text
 error[E0463]: can't find crate for `core`
-  = note: the `wasm32-unknown-unknown` target may not be installed
+  = note: the `wasm32v1-none` target may not be installed
 ```
 
 **Cause.** The WebAssembly target is not installed for the *active* toolchain. Targets are per-toolchain, so switching toolchains (for example `rustup default 1.84.0`) loses the target. The same error appears for `wasm32v1-none` when you build with `stellar contract build`, which [`contracts/shade/Makefile`](../../contracts/shade/Makefile) uses and which writes to `target/wasm32v1-none/release/`.
@@ -32,7 +32,7 @@ error[E0463]: can't find crate for `core`
 **Fix**
 
 ```bash
-rustup target add wasm32-unknown-unknown
+rustup target add wasm32v1-none
 rustup show
 ```
 
@@ -183,7 +183,7 @@ running 0 tests
 
 for a crate or filter that should match your new tests, or your new test never appears in `cargo test -p shade -- --list`.
 
-**Cause.** The file was never declared. In-crate test files under `src/tests/` must be registered with a `pub mod test_<subject>;` line in that crate's `src/tests/mod.rs`; an unregistered file compiles as nothing. A related trap: [`contracts/escrow/src/test.rs`](../../contracts/escrow/src/test.rs) and `integration_test.rs` are not declared in `escrow`'s `lib.rs`, so they never run.
+**Cause.** The file was never declared. In-crate test files under `src/tests/` must be registered with a `pub mod test_<subject>;` line in that crate's `src/tests/mod.rs`; an unregistered file compiles as nothing.
 
 **Fix.** Add the module declaration, and make sure the file starts with `#![cfg(test)]`:
 
@@ -191,8 +191,6 @@ for a crate or filter that should match your new tests, or your new test never a
 // contracts/shade/src/tests/mod.rs
 pub mod test_my_feature;
 ```
-
-For the `escrow` crate, put tests in `contracts/escrow/tests/`, where each file is its own binary and needs no registration. See [Running tests § Writing a new test module](running-tests.md#writing-a-new-test-module).
 
 ## Authorization
 

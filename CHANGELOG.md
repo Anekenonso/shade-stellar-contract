@@ -5,14 +5,35 @@ All notable changes to the Shade Protocol contracts are recorded here. The forma
 This file exists so that integrators and operators can see what each deployed WASM version contains. Each release section lists which contract changed, so you can skip entries for contracts you do not use. Read these first:
 
 - **Breaking changes** are prefixed with `**BREAKING:**` and always say what to do about them. The criteria are in [Releases § Breaking changes](docs/operations/releases.md#breaking-changes-for-integrators).
-- **Entries are grouped by contract** with a bold label: **shade**, **account**, **escrow**, **escrow_factory**, **subscription**, **ticketing**, **ticketing_factory**, **crowdfund**, **crowdfund_factory**. A label of **workspace** covers the toolchain, CI, and anything that touches every contract.
+- **Entries are grouped by contract** with a bold label: **shade**, **account**. A label of **workspace** covers the toolchain, CI, and anything that touches both. Older entries also name contracts now in `example/`.
 - **Pull requests** are referenced as `#NNN`.
 
 > **Note:** No release has been tagged yet. Every crate is still at `0.0.0`, and the history before the first tag is recorded under [Pre-release history](#pre-release-history), backfilled from merged pull requests. Dates are merge dates. The first tagged release will move the contents of [Unreleased](#unreleased) into a dated version section.
 
 ## [Unreleased]
 
+### Changed
+
+- **workspace: BREAKING:** `contracts/` now holds only `shade` and `account`. `crowdfund`, `crowdfund_factory`, `escrow`, `escrow_factory`, `subscription`, `ticketing` and `ticketing_factory` moved to `example/`, a separate workspace outside CI. Update any paths or `-p` flags that name them. See ADR 0007.
+- **shade: BREAKING:** Removed subscriptions, escrow, event ticketing, crowdfunding and campaigns, NFT rewards, vesting, KYC, DAO governance, bridge listeners and multi-sig withdrawal proposals from the hub (151 functions). Their code is in `example/*/src/from_shade/`. Integrators using them must deploy an example contract or restore the module. Their error codes, events and storage keys went with them.
+- **shade: BREAKING:** `set_merchant_account` is removed, and the `Merchant.account` field with it. Merchants call `deploy_merchant_account` instead, so the hub only ever links accounts it deployed and manages. Call `set_account_wasm_hash` first, and read the address with `get_merchant_account`.
+- **shade: BREAKING:** `restrict_merchant_account` fails with `MerchantAccountNotSet` (20) if the merchant has no account, rather than calling the merchant's own address.
+- **shade: BREAKING:** `claim_refund` errors are now `InvoiceNotExpired` (50) and `InvoiceAlreadyRefunded` (51), and its event is `InvoiceExpiredRefundEvent`, replacing the `Escrow*` names.
+- **shade:** Account addresses are derived from the merchant ID rather than a random salt.
+- **account: BREAKING:** Error codes 6 and 7 are renamed `WithdrawalRequestNotFound` and `InvalidWithdrawalStatus`.
+- **workspace:** Contracts build for `wasm32v1-none`, and CI builds them.
+
+### Fixed
+
+- **shade:** Auto-withdrawal no longer reverts the customer's payment. The sweep needed the merchant's signature, which a payer's transaction does not have, so any payment crossing the threshold failed. It now uses the new `account::sweep_to` under manager auth, and a failed sweep publishes `AutoWithdrawalFailedEvent` without affecting the payment.
+- **shade:** The crate compiles again.
+- **account:** `approve_withdrawal` no longer pays out on a restricted account.
+- **account:** A negative withdrawal threshold is rejected with `InvalidThreshold` (8), and `get_withdrawal_request` returns `WithdrawalRequestNotFound` for an unknown ID.
+
 ### Added
+
+- **shade:** `deploy_merchant_account`, `verify_merchant_account`, `add_account_token`, `set_account_withdraw_threshold` and `approve_account_withdrawal`, so the account actions reserved for its manager are reachable.
+- **account:** `sweep_to`, `get_manager` and `get_account_info`. Threshold changes and withdrawal requests, approvals and executions now emit events.
 
 - **workspace:** Documentation set under `docs/` — architecture, concepts, contract and interface references, security notes, operator runbooks, and guides (#469–#475, #478–#483, #520–#525).
 - **workspace:** FAQ and developer troubleshooting guide under `docs/getting-started/`.

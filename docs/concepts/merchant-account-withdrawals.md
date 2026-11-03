@@ -15,7 +15,7 @@ A compromised merchant key should not be able to drain an account in one transac
 
 When the account is deployed by the Shade hub (`deploy_account` in [`account_factory.rs`](../../contracts/shade/src/components/account_factory.rs)), the **hub contract itself** is the `manager`.
 
-> **Warning:** The hub contract does not expose wrappers for `set_withdrawal_threshold` or `approve_withdrawal`. For a hub-deployed account, those two calls need the manager's authorization, which only the hub contract can give, so there is currently no hub entry point to make them. The flow below applies as written to accounts whose `manager` is an address that can sign directly. The restriction path through the hub does exist, see [Restriction and verification](#restriction-and-verification).
+The hub exposes these manager actions as `set_account_withdraw_threshold` and `approve_account_withdrawal`, callable by an address with the admin or manager role.
 
 ## Functions and authorization
 
@@ -148,6 +148,6 @@ If `G` had called `restrict_account(true)` before the second `withdraw_to`, that
 
 ## Related pages
 
-- [Merchants](./merchants.md)
-- [Auto-withdrawal and merchant settlement](./auto-withdrawal.md)
+- [Merchants](merchants.md)
+- [Auto-withdrawal and merchant settlement](auto-withdrawal.md)
 - [Account contract reference](../contracts/account.md)

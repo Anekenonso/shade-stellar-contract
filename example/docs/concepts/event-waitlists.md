@@ -1,6 +1,6 @@
 # Event waitlists
 
-The standalone `ticketing` contract keeps a first-in-first-out waitlist per event. A user joins the waitlist once a capacity-limited event is full, and the first entry is promoted when a ticket is refunded. This page is for organizers and frontend developers building on [`contracts/ticketing`](../../contracts/ticketing/src/lib.rs).
+The standalone `ticketing` contract keeps a first-in-first-out waitlist per event. A user joins the waitlist once a capacity-limited event is full, and the first entry is promoted when a ticket is refunded. This page is for organizers and frontend developers building on [`contracts/ticketing`](../../ticketing/src/lib.rs).
 
 ## Why it exists
 
@@ -28,16 +28,16 @@ sequenceDiagram
 
 Promotion is automatic and happens inside `refund_ticket`. There is no organizer call to promote, skip, or reorder entries. The promoted ticket is untiered (`tier_id: None`), and its `qr_hash` is a placeholder derived from the refunded ticket ID and the ledger timestamp.
 
-> **Warning:** The placeholder `qr_hash` is not a real check-in credential. Replace it off-chain before the event, as described in [`contracts/ticketing/src/lib.rs`](../../contracts/ticketing/src/lib.rs).
+> **Warning:** The placeholder `qr_hash` is not a real check-in credential. Replace it off-chain before the event, as described in [`contracts/ticketing/src/lib.rs`](../../ticketing/src/lib.rs).
 
 ## Relevant types and storage
 
 | Type / key | Defined in | Purpose |
 |---|---|---|
-| `WaitlistEntry { event_id, applicant, joined_at }` | [`contracts/ticketing/src/lib.rs#L106-L113`](../../contracts/ticketing/src/lib.rs#L106-L113) | One queue entry. `joined_at` is the ledger timestamp in seconds. |
-| `DataKey::Waitlist(u64)` | [`contracts/ticketing/src/lib.rs#L130`](../../contracts/ticketing/src/lib.rs#L130) | `Vec<WaitlistEntry>` in persistent storage, one per event, in FIFO order. |
-| `WaitlistJoinedEvent` | [`contracts/ticketing/src/lib.rs#L192-L198`](../../contracts/ticketing/src/lib.rs#L192-L198) | `event_id`, `applicant`, `position`, `timestamp`. |
-| `WaitlistAssignedEvent` | [`contracts/ticketing/src/lib.rs#L216-L222`](../../contracts/ticketing/src/lib.rs#L216-L222) | `event_id`, `assignee`, `ticket_id`, `timestamp`. |
+| `WaitlistEntry { event_id, applicant, joined_at }` | [`contracts/ticketing/src/lib.rs#L106-L113`](../../ticketing/src/lib.rs) | One queue entry. `joined_at` is the ledger timestamp in seconds. |
+| `DataKey::Waitlist(u64)` | [`contracts/ticketing/src/lib.rs#L130`](../../ticketing/src/lib.rs) | `Vec<WaitlistEntry>` in persistent storage, one per event, in FIFO order. |
+| `WaitlistJoinedEvent` | [`contracts/ticketing/src/lib.rs#L192-L198`](../../ticketing/src/lib.rs) | `event_id`, `applicant`, `position`, `timestamp`. |
+| `WaitlistAssignedEvent` | [`contracts/ticketing/src/lib.rs#L216-L222`](../../ticketing/src/lib.rs) | `event_id`, `assignee`, `ticket_id`, `timestamp`. |
 
 ## Relevant functions
 
@@ -87,6 +87,6 @@ Waitlist entries are public. Anyone can call `get_waitlist` and read every `appl
 ## Related pages
 
 - [Ticketing contract reference](../contracts/ticketing.md)
-- [Event ticketing, dynamic pricing, and resale](./event-ticketing.md)
-- [Error reference](../reference/errors.md)
-- [Event reference](../reference/events.md)
+- [Event ticketing, dynamic pricing, and resale](event-ticketing.md)
+- [Error reference](../../../docs/reference/errors.md)
+- [Event reference](../../../docs/reference/events.md)

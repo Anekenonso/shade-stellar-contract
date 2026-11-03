@@ -4,7 +4,7 @@ The auto-withdrawal component lets [merchants](../glossary.md#merchant) have fun
 
 ## Why it exists
 
-Without auto-withdrawal, [merchants](../glossary.md#merchant) must manually call `withdraw` on their account contract to move received funds. Auto-withdrawal removes this operational burden by sweeping funds after each payment that pushes the merchant's balance above a per-token threshold.
+Without auto-withdrawal, [merchants](../glossary.md#merchant) must manually call `withdraw_to` on their account contract to move received funds. Auto-withdrawal removes this operational burden by sweeping funds after each payment that pushes the merchant's balance above a per-token threshold.
 
 ## How it works
 
@@ -29,7 +29,7 @@ flowchart TD
     B -- yes, threshold = 0 --> C
     B -- yes --> D{balance >= threshold?}
     D -- no --> C
-    D -- yes --> E[call withdraw_to on merchant account]
+    D -- yes --> E[call sweep_to on merchant account]
     E --> F[funds transferred to recipient]
 ```
 
@@ -39,20 +39,18 @@ The exact condition: after the payment increases the merchant account's token ba
 
 1. The sweep reads the merchant account address and the token balance.
 2. It resolves the recipient — the configured `auto_withdrawal_recipient`, or the [merchant](../glossary.md#merchant) address if none is set.
-3. It calls `withdraw_to(token, amount, recipient)` on the merchant account contract, which transfers the full balance.
-4. An `AutoWithdrawalTriggeredEvent` is published.
+3. It calls `sweep_to(token, amount, recipient)` on the merchant account contract, which transfers the full balance. This is authorized by the hub as the account's manager, so the payer's signature is all the transaction needs.
+4. An `AutoWithdrawalTriggeredEvent` is published if the sweep succeeded.
 
 ### Failure handling
 
-If `withdraw_to` fails (e.g., the merchant account contract rejects the call), the auto-withdrawal sweep fails silently — it does not revert the enclosing payment transaction. The payment itself is already settled; the sweep is a best-effort follow-up. The merchant's balance remains in the account and can be swept on a subsequent payment or withdrawn manually.
-
-> **Warning:** A failed sweep does not notify the [merchant](../glossary.md#merchant). If sweeps are consistently failing, the merchant should verify the account contract configuration and the recipient address.
+If `sweep_to` fails, for example because the account is restricted, the hub catches the failure and publishes `AutoWithdrawalFailedEvent`. The payment is not reverted. The funds stay in the account and can be swept on a later payment or withdrawn manually.
 
 ## Interaction with merchant account restrictions
 
 Auto-withdrawal interacts with `restrict_merchant_account` as follows:
 
-- **Restricted merchant.** If the [merchant](../glossary.md#merchant) account is restricted (e.g., unverified or flagged), the `withdraw_to` call on the account contract may be rejected. The sweep fails silently, and the payment is not affected.
+- **Restricted merchant.** `sweep_to` is rejected on a restricted account. The payment still settles, and `AutoWithdrawalFailedEvent` is published.
 - **Inactive merchant.** If the [merchant](../glossary.md#merchant) is inactive, `set_auto_withdrawal_threshold` panics — you cannot configure auto-withdrawal for an inactive merchant.
 
 ## Configuration reference
@@ -81,9 +79,9 @@ Auto-withdrawal interacts with `restrict_merchant_account` as follows:
 - **Threshold is not cumulative.** The sweep transfers the full account balance, not just the amount above the threshold.
 - **No notification on failure.** A failed sweep does not emit an event or revert the payment.
 
-> **Note:** Auto-withdrawal is triggered only by invoice payments. Subscription charges, ticket purchases, and other payment types do not trigger the sweep.
+> **Note:** Auto-withdrawal is triggered only by invoice payments.
 
 ## Related pages
 
-- [Invoices and payment](./payment-payloads-and-routing.md)
-- [Merchant analytics and transaction history](./analytics-and-history.md)
+- [Invoices and payment](payment-payloads-and-routing.md)
+- [Merchant analytics and transaction history](analytics-and-history.md)

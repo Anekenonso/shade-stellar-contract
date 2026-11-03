@@ -1,10 +1,10 @@
 # Merchants
 
-A [merchant](../glossary.md#merchant) is the party that registers with Shade to create invoices, subscription plans, events, and campaigns, and receive payments. This page traces registration, activation, verification, configuration, and querying entirely from [`contracts/shade/src/components/merchant.rs`](../../contracts/shade/src/components/merchant.rs), the `Merchant`/`MerchantFilter` types in [`contracts/shade/src/types.rs`](../../contracts/shade/src/types.rs), and every call site across `contracts/shade/src/components/` that reads a merchant's active/verified state.
+A [merchant](../glossary.md#merchant) is the party that registers with Shade to create invoices and receive payments. This page traces registration, activation, verification, configuration, and querying entirely from [`contracts/shade/src/components/merchant.rs`](../../contracts/shade/src/components/merchant.rs), the `Merchant`/`MerchantFilter` types in [`contracts/shade/src/types.rs`](../../contracts/shade/src/types.rs), and every call site across `contracts/shade/src/components/` that reads a merchant's active/verified state.
 
 ## Registration — `register_merchant`
 
-Verified at [`merchant.rs:14-61`](../../contracts/shade/src/components/merchant.rs#L14-L61).
+Verified at [`merchant.rs:14-61`](../../contracts/shade/src/components/merchant.rs).
 
 - **Caller:** the address becoming the merchant (`merchant.require_auth()`); there is no admin gate — anyone can self-register.
 - **Idempotency:** panics `MerchantAlreadyRegistered` if `DataKey::MerchantId(merchant)` already exists — one address can register at most once.
@@ -18,7 +18,6 @@ Verified at [`merchant.rs:14-61`](../../contracts/shade/src/components/merchant.
 | `active` | `true` — a merchant is active immediately on registration; there is no separate approval step. |
 | `verified` | `false` — verification is never granted at registration; see [Verification](#verification). |
 | `date_registered` | `env.ledger().timestamp()` at registration time. |
-| `account` | Set to the merchant's own address, **not** a separately deployed `account` contract instance. Configuring a dedicated `account` contract requires a later `set_merchant_account` call (or, per [`docs/contracts/shade.md`](../contracts/shade.md#post-deploy-configuration-checklist), a deployment flow that calls `account_factory::deploy_account` and then `set_merchant_account`). |
 | `webhook` | Empty string. |
 | `auto_withdrawal_recipient` | `None`. |
 | `auto_withdrawal_thresholds` | Empty vector. |
@@ -30,8 +29,8 @@ Verified at [`merchant.rs:14-61`](../../contracts/shade/src/components/merchant.
 
 **Activation and verification are independent fields on the `Merchant` record** (`active: bool` and `verified: bool`), each with its own setter, getter, and — critically — its own, different set of enforcement points across the codebase. They are not two facets of one status enum.
 
-- **Setter:** `set_merchant_status(admin, merchant_id, status)` — verified at [`merchant.rs:114-149`](../../contracts/shade/src/components/merchant.rs#L114-L149). Caller must be `admin` (`core_component::assert_admin`); there is no merchant-self-service path to deactivate or reactivate. Panics `MerchantNotFound` for ID `0` or an ID beyond the current `MerchantCount`. Sets `merchant.active = status` and re-stores the record. Emits `MerchantStatusChangedEvent { merchant_id, active: status, timestamp }`.
-- **Getter:** `is_merchant_active(merchant_id)` — verified at [`merchant.rs:151-173`](../../contracts/shade/src/components/merchant.rs#L151-L173). Same `merchant_id == 0` / out-of-range panics as the setter; reads and returns `merchant.active`.
+- **Setter:** `set_merchant_status(admin, merchant_id, status)` — verified at [`merchant.rs:114-149`](../../contracts/shade/src/components/merchant.rs). Caller must be `admin` (`core_component::assert_admin`); there is no merchant-self-service path to deactivate or reactivate. Panics `MerchantNotFound` for ID `0` or an ID beyond the current `MerchantCount`. Sets `merchant.active = status` and re-stores the record. Emits `MerchantStatusChangedEvent { merchant_id, active: status, timestamp }`.
+- **Getter:** `is_merchant_active(merchant_id)` — verified at [`merchant.rs:151-173`](../../contracts/shade/src/components/merchant.rs). Same `merchant_id == 0` / out-of-range panics as the setter; reads and returns `merchant.active`.
 - **What requires an active merchant — every enforcement site found across `contracts/shade/src/components/`:**
 
 | Component | Function (as declared) | Effect of `active == false` |
@@ -41,19 +40,14 @@ Verified at [`merchant.rs:14-61`](../../contracts/shade/src/components/merchant.
 | `merchant.rs` | `remove_merchant_accepted_token` | Panics `MerchantNotActive`. |
 | `auto_withdrawal.rs` | Two call sites (not independently traced into this component for this page) | Panics `MerchantNotActive`. |
 | `backer_rewards.rs` | One call site (not independently traced for this page) | Panics `MerchantNotActive`. |
-| `campaigns.rs` | One call site (not independently traced for this page) | Panics `MerchantNotActive`. |
-| `event.rs` | One call site (not independently traced for this page) | Panics `MerchantNotActive`. |
-| `multisig_withdrawal.rs` | One call site (not independently traced for this page) | Panics `MerchantNotActive`. |
-| `nft.rs` | One call site (not independently traced for this page) | Panics `MerchantNotActive`. |
-| `pledge.rs` | One call site (not independently traced for this page) | Panics `MerchantNotActive`. |
 
-- **Effect on existing invoices/payments/subscriptions:** deactivating a merchant does not touch any existing `Invoice`, `Subscription`, or `Escrow` record — verified absent from `set_merchant_status`'s body, which only writes the `Merchant` record itself. In particular, `pay_invoice`/`pay_invoice_partial` do **not** check `is_merchant_active` (verified absent from `invoice.rs`'s payment path) — a buyer can still pay an invoice created before the merchant was deactivated. Refund operations (`refund_invoice`, `refund_invoice_partial`, `void_invoice`, `amend_invoice`, `claim_refund`) likewise do not check merchant active status in the code read for [refunds-and-voids.md](refunds-and-voids.md) — deactivation blocks *new* invoice creation and the listed config changes, not existing-invoice lifecycle operations.
+- **Effect on existing invoices and payments:** deactivating a merchant does not touch any existing `Invoice` record — verified absent from `set_merchant_status`'s body, which only writes the `Merchant` record itself. In particular, `pay_invoice`/`pay_invoice_partial` do **not** check `is_merchant_active` (verified absent from `invoice.rs`'s payment path) — a buyer can still pay an invoice created before the merchant was deactivated. Refund operations (`refund_invoice`, `refund_invoice_partial`, `void_invoice`, `amend_invoice`, `claim_refund`) likewise do not check merchant active status in the code read for [refunds-and-voids.md](refunds-and-voids.md) — deactivation blocks *new* invoice creation and the listed config changes, not existing-invoice lifecycle operations.
 - **Independence from verification:** `set_merchant_status` never reads or writes `merchant.verified`, and no function that checks `is_merchant_active` also checks `is_merchant_verified` in the same guard (verified across every call site listed above) — they are enforced completely separately.
 
 ## Verification
 
-- **Setter:** `verify_merchant(admin, merchant_id, status)` — verified at [`merchant.rs:175-186`](../../contracts/shade/src/components/merchant.rs#L175-L186). Caller must be `admin`. Sets `merchant.verified = status` (so this same function both grants and revokes verification, via the `status` boolean — there is no separate revoke function). Emits `MerchantVerifiedEvent { merchant_id, status, timestamp }`.
-- **Getter:** `is_merchant_verified(merchant_id)` — verified at [`merchant.rs:188-191`](../../contracts/shade/src/components/merchant.rs#L188-L191). Reads and returns `merchant.verified`.
+- **Setter:** `verify_merchant(admin, merchant_id, status)` — verified at [`merchant.rs:175-186`](../../contracts/shade/src/components/merchant.rs). Caller must be `admin`. Sets `merchant.verified = status` (so this same function both grants and revokes verification, via the `status` boolean — there is no separate revoke function). Emits `MerchantVerifiedEvent { merchant_id, status, timestamp }`.
+- **Getter:** `is_merchant_verified(merchant_id)` — verified at [`merchant.rs:188-191`](../../contracts/shade/src/components/merchant.rs). Reads and returns `merchant.verified`.
 - **What actually requires verification:** **nothing, in the code read for this page.** `is_merchant_verified` and the `verified` field are read only by the `is_merchant_verified` getter itself (and its `shade.rs` trait wrapper) — no function in `contracts/shade/src/components/` calls `is_merchant_verified` as a precondition for any operation. This was verified by searching every call site of `is_merchant_verified` and `merchant.verified` across `contracts/shade/src/components/`.
 
 > **Warning:** Verification is currently a purely informational/queryable flag. Setting `verified = true` via `verify_merchant` does not unlock, gate, or change the behavior of any other function traced for this page. Do not assume verification enforces anything beyond what a caller (on-chain or off-chain) chooses to check by calling `is_merchant_verified`/`get_merchant` itself and branching on the result client-side.
@@ -82,10 +76,10 @@ All verified in `merchant.rs`. Every one below requires `merchant.require_auth()
 
 Verified in `merchant.rs` and `types.rs`.
 
-- **`get_merchant(merchant_id)`** — [`merchant.rs:63-82`](../../contracts/shade/src/components/merchant.rs#L63-L82). Panics `MerchantNotFound` for `merchant_id == 0` or any ID greater than the current `MerchantCount`, or if the record is somehow absent. Returns the full `Merchant` record.
-- **`is_merchant(address)`** — [`merchant.rs:108-112`](../../contracts/shade/src/components/merchant.rs#L108-L112). Returns whether `DataKey::MerchantId(address)` exists; never panics.
-- **`find_merchant_id(address)`** — [`merchant.rs:95-99`](../../contracts/shade/src/components/merchant.rs#L95-L99). Returns `Option<u64>`; the non-panicking counterpart to `get_merchant_id`, intended (per its doc comment) for read-only paths that must not panic on an unregistered address.
-- **`get_merchants(filter: MerchantFilter)`** — [`merchant.rs:219-255`](../../contracts/shade/src/components/merchant.rs#L219-L255). `MerchantFilter { is_active: Option<bool>, is_verified: Option<bool> }` — both fields optional and independently applied (AND semantics: a merchant must match every `Some` filter field supplied). **Ordering:** iterates IDs `1..=MerchantCount` in ascending order, so results are returned in registration order; there is no separate sort. **Pagination:** none — every matching merchant across the full ID range is returned in one call (see also [Storage model: collection-shaped storage](../architecture/storage-model.md#collection-shaped-storage) for the cost implications of this). **Unknown-ID behavior:** not applicable — this function has no ID parameter; IDs that were never assigned simply can't exist in the `1..=MerchantCount` range it iterates.
+- **`get_merchant(merchant_id)`** — [`merchant.rs:63-82`](../../contracts/shade/src/components/merchant.rs). Panics `MerchantNotFound` for `merchant_id == 0` or any ID greater than the current `MerchantCount`, or if the record is somehow absent. Returns the full `Merchant` record.
+- **`is_merchant(address)`** — [`merchant.rs:108-112`](../../contracts/shade/src/components/merchant.rs). Returns whether `DataKey::MerchantId(address)` exists; never panics.
+- **`find_merchant_id(address)`** — [`merchant.rs:95-99`](../../contracts/shade/src/components/merchant.rs). Returns `Option<u64>`; the non-panicking counterpart to `get_merchant_id`, intended (per its doc comment) for read-only paths that must not panic on an unregistered address.
+- **`get_merchants(filter: MerchantFilter)`** — [`merchant.rs:219-255`](../../contracts/shade/src/components/merchant.rs). `MerchantFilter { is_active: Option<bool>, is_verified: Option<bool> }` — both fields optional and independently applied (AND semantics: a merchant must match every `Some` filter field supplied). **Ordering:** iterates IDs `1..=MerchantCount` in ascending order, so results are returned in registration order; there is no separate sort. **Pagination:** none — every matching merchant across the full ID range is returned in one call (see also [Storage model: collection-shaped storage](../architecture/storage-model.md#collection-shaped-storage) for the cost implications of this). **Unknown-ID behavior:** not applicable — this function has no ID parameter; IDs that were never assigned simply can't exist in the `1..=MerchantCount` range it iterates.
 - **`search_merchants_paginated(filter, cursor, page_size)`** — declared in `shade_interface.rs`, not independently traced into `search.rs` for this page. Per [`docs/contracts/shade.md`](../contracts/shade.md#search-and-filtering), this is the cursor-paginated counterpart to `get_merchants`.
 
 ## Merchant state diagram
@@ -120,11 +114,6 @@ Derived strictly from the enforcement call sites found in [Activation](#activati
 | `set_merchant_accepted_tokens` / `remove_merchant_accepted_token` | **Yes** | No | Each token must be globally accepted first. |
 | Auto-withdrawal configuration/trigger paths (`auto_withdrawal.rs`) | **Yes** (two call sites) | No | — |
 | Backer-reward operations (`backer_rewards.rs`) | **Yes** (one call site) | No | — |
-| Campaign operations (`campaigns.rs`) | **Yes** (one call site) | No | — |
-| Event/ticketing operations (`event.rs`) | **Yes** (one call site) | No | — |
-| Multi-sig withdrawal operations (`multisig_withdrawal.rs`) | **Yes** (one call site) | No | — |
-| NFT operations (`nft.rs`) | **Yes** (one call site) | No | — |
-| Pledge operations (`pledge.rs`) | **Yes** (one call site) | No | — |
 | `pay_invoice` / `pay_invoice_partial` / `pay_invoices_batch` | No (not checked) | No | Invoice status must be `Pending`/`PartiallyPaid`; token accepted; global pause. |
 | `refund_invoice` / `refund_invoice_partial` / `void_invoice` / `amend_invoice` / `claim_refund` | No (not checked) | No | See [Refunds and voids](refunds-and-voids.md) for the full precondition set. |
 | Every other query/config function not listed above (`set_merchant_account`, `set_merchant_key`, `set_merchant_webhook`, `get_merchant`, etc.) | No | No | Merchant must be registered where the function reads a merchant record. |

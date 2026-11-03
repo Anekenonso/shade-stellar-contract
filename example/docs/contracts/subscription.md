@@ -4,11 +4,11 @@ The `subscription` crate (`contracts/subscription/`) is a standalone Soroban con
 
 ## Contract interface
 
-`contracts/subscription/` has no separate `interface.rs`; its public surface is the `#[contractimpl] impl SubscriptionContract` block in [`contracts/subscription/src/lib.rs`](../../contracts/subscription/src/lib.rs). All four test modules (`test_grace`, `test_integration`, `test_refund`, `test_upgrades_downgrades`) are wired in via `#[cfg(test)] mod` declarations in `lib.rs` and the crate builds cleanly (`cargo build -p subscription`) — unlike [`contracts/escrow`](./escrow.md), there is no orphaned/stale test code here.
+`contracts/subscription/` has no separate `interface.rs`; its public surface is the `#[contractimpl] impl SubscriptionContract` block in [`contracts/subscription/src/lib.rs`](../../subscription/src/lib.rs). All four test modules (`test_grace`, `test_integration`, `test_refund`, `test_upgrades_downgrades`) are wired in via `#[cfg(test)] mod` declarations in `lib.rs` and the crate builds cleanly (`cargo build -p subscription`) — unlike [`contracts/escrow`](escrow.md), there is no orphaned/stale test code here.
 
 ## Types
 
-Defined in [`contracts/subscription/src/types.rs`](../../contracts/subscription/src/types.rs).
+Defined in [`contracts/subscription/src/types.rs`](../../subscription/src/types.rs).
 
 ### `Plan`
 
@@ -201,5 +201,5 @@ The two implementations diverge substantially, not just in surface API:
 - [Subscription billing authorization and allowances](../concepts/subscription-billing-authorization.md) — how `authorize_billing`'s cycle count maps to a token allowance, and what a price change does to an existing authorization.
 - [Subscription grace periods and past-due handling](../concepts/subscription-grace-periods.md) — the full `PastDue`/`Terminated` lifecycle and event emission.
 - [Billing Keeper Operator Guide](../operations/billing-keeper.md) — running the off-chain process that drives `charge`/`process_charge`/`process_billing_cycle`.
-- [Escrow contract reference](./escrow.md) — the sibling standalone-crate-vs-hub-component pattern for escrow.
-- [Protocol Glossary](../glossary.md) — `merchant`, `subscription`, `subscription plan` terms.
+- [Escrow contract reference](escrow.md) — the sibling standalone-crate-vs-hub-component pattern for escrow.
+- [Protocol Glossary](../../../docs/glossary.md) — `merchant`, `subscription`, `subscription plan` terms.

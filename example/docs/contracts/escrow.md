@@ -4,7 +4,7 @@ The `escrow` crate (`contracts/escrow/`) and `escrow_factory` (`contracts/escrow
 
 ## Contract interface
 
-`contracts/escrow/` has no separate `interface.rs`; its public surface is the `#[contractimpl] impl EscrowContract` block in [`contracts/escrow/src/lib.rs`](../../contracts/escrow/src/lib.rs). `contracts/escrow_factory/` is defined the same way in [`contracts/escrow_factory/src/lib.rs`](../../contracts/escrow_factory/src/lib.rs).
+`contracts/escrow/` has no separate `interface.rs`; its public surface is the `#[contractimpl] impl EscrowContract` block in [`contracts/escrow/src/lib.rs`](../../escrow/src/lib.rs). `contracts/escrow_factory/` is defined the same way in [`contracts/escrow_factory/src/lib.rs`](../../escrow_factory/src/lib.rs).
 
 > **Warning:** `contracts/escrow/src/test.rs` (1,251 lines) and `contracts/escrow/src/integration_test.rs` (292 lines) exist on disk but are **not** referenced by any `mod` declaration in `lib.rs` (which declares only `mod errors;`). They are dead code — not compiled as part of the crate at all (`cargo test -p escrow` runs 0 unit tests from `src/lib.rs`). They describe a much larger, entirely different API surface (buyer/seller/arbiter/terms/milestones/disputes/deadlines/`init`/`approve_release`/`approve_milestone_release`/`open_dispute`/`resolve_dispute`/`claim_refund`) that does not exist in the actual crate and does not compile against it. The crate's real, live, currently-passing test suite lives in **`contracts/escrow/tests/`** (`test_initialization.rs`, `test_funding.rs`, `test_release.rs` — standard Rust integration-test convention, auto-discovered regardless of `lib.rs` module declarations), confirmed by `cargo test -p escrow`. This page documents only the real `lib.rs` API and its real tests; the orphaned files are noted here only so a reader who greps the crate doesn't mistake them for current behavior.
 
@@ -88,7 +88,7 @@ Authority: `contracts/escrow/tests/test_release.rs` plus `lib.rs`.
 
 **Neither exists in this crate.** There is no `refund` function, no `expired`/`Expired` status, no deadline field on the escrow, and no time-based logic of any kind in `contracts/escrow/src/lib.rs`. An escrow that is `Created` but never funded, or `Funded` but never released, has no mechanism in this contract to return funds or change state — because the contract itself never holds funds in the first place (see the funds-movement warning above), "refund" would in any case have nothing on-contract to reverse.
 
-> **Note:** the orphaned `contracts/escrow/src/integration_test.rs` and `src/test.rs` files describe expiry/`claim_refund` behavior extensively (deadlines, `EXPIRY` constants, "escrow has not expired yet" panics) — but as established above, those files are not compiled into the crate and do not reflect `lib.rs`. Do not treat them as documentation of current behavior. If similarly named tests are needed for reference, `contracts/shade/src/tests/test_expired_escrow_refund.rs` exists, but — despite its name and its `Escrow*`-flavored error/event names — it exercises **invoice** expiry refunds (`claim_refund` on an `Invoice`, part of the hub's invoice component), not this crate or the hub's own `Escrow` type. See the [invoice lifecycle](../concepts/invoice-lifecycle.md#expiry) page for that behavior.
+> **Note:** the orphaned `contracts/escrow/src/integration_test.rs` and `src/test.rs` files describe expiry/`claim_refund` behavior extensively (deadlines, `EXPIRY` constants, "escrow has not expired yet" panics) — but as established above, those files are not compiled into the crate and do not reflect `lib.rs`. Do not treat them as documentation of current behavior. If similarly named tests are needed for reference, `contracts/shade/src/tests/test_expired_escrow_refund.rs` exists, but — despite its name and its `Escrow*`-flavored error/event names — it exercises **invoice** expiry refunds (`claim_refund` on an `Invoice`, part of the hub's invoice component), not this crate or the hub's own `Escrow` type. See the [invoice lifecycle](../../../docs/concepts/invoice-lifecycle.md#expiry) page for that behavior.
 
 ## Arbitration
 
@@ -169,7 +169,7 @@ Confirmed directly from `contracts/shade/Cargo.toml`: the hub depends only on `a
 ## Related pages
 
 - [Escrow](../concepts/escrow.md) — the Shade hub's own escrow feature, fully documented (this page intentionally does not repeat that content).
-- [Invoice lifecycle and statuses](../concepts/invoice-lifecycle.md#expiry) — `claim_refund` and the `Escrow*`-named errors/events it reuses, which belong to invoice logic, not to either escrow contract on this page.
-- [Subscription contract reference](./subscription.md) — the sibling standalone-crate-vs-hub-component pattern for subscriptions.
-- [Ticketing contract reference](./ticketing.md) — the sibling standalone-crate-vs-hub pattern for ticketing, including the same random-salt factory idiom.
-- [Protocol Glossary](../glossary.md) — `escrow`, `escrow arbiter` terms.
+- [Invoice lifecycle and statuses](../../../docs/concepts/invoice-lifecycle.md#expiry) — `claim_refund` and the `Escrow*`-named errors/events it reuses, which belong to invoice logic, not to either escrow contract on this page.
+- [Subscription contract reference](subscription.md) — the sibling standalone-crate-vs-hub-component pattern for subscriptions.
+- [Ticketing contract reference](ticketing.md) — the sibling standalone-crate-vs-hub pattern for ticketing, including the same random-salt factory idiom.
+- [Protocol Glossary](../../../docs/glossary.md) — `escrow`, `escrow arbiter` terms.

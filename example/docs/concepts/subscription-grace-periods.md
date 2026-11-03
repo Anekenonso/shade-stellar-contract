@@ -2,7 +2,7 @@
 
 When a recurring charge fails for insufficient allowance, the standalone `subscription` contract (`contracts/subscription/`) doesn't drop the subscriber immediately — it enters a `PastDue` grace window sized by the plan, and only terminates once that window elapses without payment. This page documents every status, every transition, who can drive each one, and what events (if any) a merchant can observe off-chain.
 
-> **Note:** This page covers the standalone `subscription` crate, not the Shade hub's own subscription feature, which has no grace period or `PastDue` concept at all (see [Subscriptions and recurring billing](./subscriptions.md) and the comparison table in the [contract reference](../contracts/subscription.md#relationship-to-shade)).
+> **Note:** This page covers the standalone `subscription` crate, not the Shade hub's own subscription feature, which has no grace period or `PastDue` concept at all (see [Subscriptions and recurring billing](subscriptions.md) and the comparison table in the [contract reference](../contracts/subscription.md#relationship-to-shade)).
 
 ## Why it exists
 
@@ -10,7 +10,7 @@ A single missed payment — a lapsed card-equivalent allowance, a customer who h
 
 ## `set_plan_grace_period`
 
-[`contracts/subscription/src/lib.rs`](../../contracts/subscription/src/lib.rs#L151-L165)
+[`contracts/subscription/src/lib.rs`](../../subscription/src/lib.rs)
 
 ```rust
 pub fn set_plan_grace_period(env: Env, merchant: Address, plan_id: u64, grace_period: u64)
@@ -23,7 +23,7 @@ pub fn set_plan_grace_period(env: Env, merchant: Address, plan_id: u64, grace_pe
 
 ## `SubscriptionStatus`
 
-[`contracts/subscription/src/types.rs`](../../contracts/subscription/src/types.rs#L73-L85)
+[`contracts/subscription/src/types.rs`](../../subscription/src/types.rs)
 
 | Variant | Value | Meaning | Can be charged? | Terminal? |
 |---|---|---|---|---|
@@ -54,7 +54,7 @@ Strict `charge(sub_id)` only ever operates on `Active` subscriptions — it pani
 
 ## `enforce_grace(sub_id)`
 
-[`contracts/subscription/src/lib.rs`](../../contracts/subscription/src/lib.rs#L529-L555)
+[`contracts/subscription/src/lib.rs`](../../subscription/src/lib.rs)
 
 ```rust
 pub fn enforce_grace(env: Env, sub_id: u64)
@@ -69,19 +69,19 @@ pub fn enforce_grace(env: Env, sub_id: u64)
 
 ## Recovery
 
-If the customer restores a sufficient token allowance (via `authorize_billing` — see [Subscription billing authorization and allowances](./subscription-billing-authorization.md)) before the grace window elapses, the **next** `process_charge`/`process_billing_cycle` call on that subscription:
+If the customer restores a sufficient token allowance (via `authorize_billing` — see [Subscription billing authorization and allowances](subscription-billing-authorization.md)) before the grace window elapses, the **next** `process_charge`/`process_billing_cycle` call on that subscription:
 
 1. Successfully pulls the charge (`try_pull_charge` finds `allowance >= plan.amount`).
 2. Sets `status = Active`, `last_charged = now`, `past_due_since = 0`.
 3. Returns `ChargeOutcome::Recovered`.
 
-This is the forgiving path's success-from-`PastDue` branch in `step_billing_cycle` ([`contracts/subscription/src/lib.rs`](../../contracts/subscription/src/lib.rs#L783-L827)) — the same underlying `try_pull_charge` the `Active` branch uses, just with different bookkeeping around it (`past_due_since` reset, status flip). Repeated failed checks during the window do **not** reset or extend `past_due_since`: the deadline is fixed the moment grace begins, not a rolling window that restarts on every poke (`test_past_due_within_grace_keeps_state_unchanged_when_still_short`).
+This is the forgiving path's success-from-`PastDue` branch in `step_billing_cycle` ([`contracts/subscription/src/lib.rs`](../../subscription/src/lib.rs)) — the same underlying `try_pull_charge` the `Active` branch uses, just with different bookkeeping around it (`past_due_since` reset, status flip). Repeated failed checks during the window do **not** reset or extend `past_due_since`: the deadline is fixed the moment grace begins, not a rolling window that restarts on every poke (`test_past_due_within_grace_keeps_state_unchanged_when_still_short`).
 
 A `PastDue` subscription can still be read (`get_subscription`) and cancelled (`cancel_subscription`/`cancel_with_prorated_refund` both accept `PastDue`) without first recovering — a customer in grace isn't locked out of exiting cleanly.
 
 ## Events
 
-The `subscription` crate defines exactly two event types ([`contracts/subscription/src/types.rs`](../../contracts/subscription/src/types.rs#L1-L19)):
+The `subscription` crate defines exactly two event types ([`contracts/subscription/src/types.rs`](../../subscription/src/types.rs)):
 
 | Event | Fields | Emitted by |
 |---|---|---|
@@ -100,7 +100,7 @@ Mapped onto the grace lifecycle specifically:
 
 ## Test cross-reference
 
-Every rule above is backed by a specific test in [`contracts/subscription/src/test_grace.rs`](../../contracts/subscription/src/test_grace.rs):
+Every rule above is backed by a specific test in [`contracts/subscription/src/test_grace.rs`](../../subscription/src/test_grace.rs):
 
 | Behavior | Test |
 |---|---|
@@ -118,8 +118,8 @@ Every rule above is backed by a specific test in [`contracts/subscription/src/te
 
 ## Related pages
 
-- [Subscription billing authorization and allowances](./subscription-billing-authorization.md) — how `authorize_billing` and a restored allowance drive recovery.
+- [Subscription billing authorization and allowances](subscription-billing-authorization.md) — how `authorize_billing` and a restored allowance drive recovery.
 - [Subscription contract reference](../contracts/subscription.md) — full type, function, and error listing, including the transition reference table this page's diagram is drawn from.
 - [Billing Keeper Operator Guide](../operations/billing-keeper.md) — the off-chain process that actually calls `process_charge`/`process_billing_cycle` and reacts to `ChargeOutcome`.
-- [Events reference § `subscription` contract](../reference/events.md#subscription-contract) — `SubRenewed`/`SubExpired` alongside every other event in the workspace.
-- [Subscriptions and recurring billing](./subscriptions.md) — the Shade hub's own subscription feature, which has no grace period or `PastDue` state at all.
+- [Events reference § `subscription` contract](../../../docs/reference/events.md#subscription-contract) — `SubRenewed`/`SubExpired` alongside every other event in the workspace.
+- [Subscriptions and recurring billing](subscriptions.md) — the Shade hub's own subscription feature, which has no grace period or `PastDue` state at all.

@@ -1,6 +1,6 @@
 # Subscription prorated cancellation refunds
 
-`cancel_with_prorated_refund` cancels a subscription and returns the unused part of the current billing cycle to the customer. `quote_prorated_refund` previews that amount without changing state. Both live in the standalone `subscription` contract ([`contracts/subscription/src/lib.rs`](../../contracts/subscription/src/lib.rs)).
+`cancel_with_prorated_refund` cancels a subscription and returns the unused part of the current billing cycle to the customer. `quote_prorated_refund` previews that amount without changing state. Both live in the standalone `subscription` contract ([`contracts/subscription/src/lib.rs`](../../subscription/src/lib.rs)).
 
 ## Why it exists
 
@@ -45,7 +45,7 @@ A plan charges `amount = 1_000` base units every `interval = 2_592_000` seconds 
 | Halfway | 2_296_000 | 1_296_000 | 1_000 × 1_296_000 / 2_592_000 | **500** |
 | Cycle over | 3_592_000 | 0 | `now >= cycle_end` | **0** (`NothingToRefund`) |
 
-These cases match the tests in [`contracts/subscription/src/test_refund.rs`](../../contracts/subscription/src/test_refund.rs) (`test_quote_full_refund_immediately_after_charge`, `test_quote_half_refund_at_mid_cycle`, `test_quote_zero_after_full_cycle_elapsed`, `test_cancel_with_refund_uses_exact_quote_amount`). The tests allow a 1-unit tolerance on mid-cycle quotes because of the integer division.
+These cases match the tests in [`contracts/subscription/src/test_refund.rs`](../../subscription/src/test_refund.rs) (`test_quote_full_refund_immediately_after_charge`, `test_quote_half_refund_at_mid_cycle`, `test_quote_zero_after_full_cycle_elapsed`, `test_cancel_with_refund_uses_exact_quote_amount`). The tests allow a 1-unit tolerance on mid-cycle quotes because of the integer division.
 
 > **Note:** The formula uses the plan's *current* `amount`, not the amount of the last charge, and expresses the refund in the subscription's billing token (`preferred_token` if set, otherwise `Plan.token`). If the plan amount changed after the last charge, the refund is computed from the new amount.
 
@@ -81,9 +81,9 @@ On success the subscription status becomes `Cancelled` and a `SubExpired` event 
 
 | Function | Defined in | Purpose |
 |---|---|---|
-| `cancel_with_prorated_refund` | [`contracts/subscription/src/lib.rs`](../../contracts/subscription/src/lib.rs) | Cancel and pay the prorated refund. |
-| `quote_prorated_refund` | [`contracts/subscription/src/lib.rs`](../../contracts/subscription/src/lib.rs) | Read-only refund preview. |
-| `cancel_subscription` | [`contracts/subscription/src/lib.rs`](../../contracts/subscription/src/lib.rs) | Cancel without a refund. |
+| `cancel_with_prorated_refund` | [`contracts/subscription/src/lib.rs`](../../subscription/src/lib.rs) | Cancel and pay the prorated refund. |
+| `quote_prorated_refund` | [`contracts/subscription/src/lib.rs`](../../subscription/src/lib.rs) | Read-only refund preview. |
+| `cancel_subscription` | [`contracts/subscription/src/lib.rs`](../../subscription/src/lib.rs) | Cancel without a refund. |
 
 ## Choosing a cancellation function
 
@@ -114,8 +114,8 @@ Use `cancel_subscription` when no refund is owed, such as the end of a cycle, a 
 
 ## Related pages
 
-- [Subscriptions and recurring billing](./subscriptions.md)
-- [Subscription billing authorization and allowances](./subscription-billing-authorization.md)
-- [Subscription grace periods and past-due handling](./subscription-grace-periods.md)
-- [Refunds and voids](./refunds-and-voids.md)
+- [Subscriptions and recurring billing](subscriptions.md)
+- [Subscription billing authorization and allowances](subscription-billing-authorization.md)
+- [Subscription grace periods and past-due handling](subscription-grace-periods.md)
+- [Refunds and voids](../../../docs/concepts/refunds-and-voids.md)
 - [Subscription contract reference](../contracts/subscription.md)

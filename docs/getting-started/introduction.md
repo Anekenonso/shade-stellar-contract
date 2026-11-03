@@ -23,8 +23,6 @@ Three properties follow from that design:
 - **Deterministic, auditable fees.** The [protocol fee](../glossary.md#protocol-fee) is basis points on the gross amount, resolved from on-chain configuration at payment time and emitted in an event. Fee changes go through a time lock (`propose_fee`, then `execute_fee`), so a merchant can see a change coming.
 - **Fast and cheap by construction.** Stellar settles in seconds at negligible cost, and the contracts are compiled for minimum size and instruction count (see [Building the Contracts](building.md#release-profile-settings)).
 
-On top of that payment core, the repository adds the commerce primitives that merchants actually need: recurring [subscriptions](../glossary.md#subscription), event [ticketing](../glossary.md#ticket), two-party [escrow](../glossary.md#escrow), and crowdfunding campaigns.
-
 ## Non-goals
 
 Being explicit about what Shade does *not* do is as useful as describing what it does.
@@ -37,7 +35,7 @@ Being explicit about what Shade does *not* do is as useful as describing what it
 | **Being a wallet** | Shade holds no user keys and offers no key management. Payers and merchants bring their own Stellar accounts. |
 | **General-purpose identity or full KYC** | The protocol records a verification flag and a KYC request lifecycle that reviewers act on. It does not collect, store, or validate identity documents on chain — that work happens off chain, and only the resulting status is recorded. |
 | **Reversing settled payments unilaterally** | There is no chargeback. Refunds are explicit contract calls made by the party holding the funds; escrow exists for deals that need a hold before release. |
-| **Off-chain infrastructure** | Dashboards, SDKs, notification services, and bridge listeners live outside this repository. Shade emits events; those systems consume them. |
+| **Off-chain infrastructure** | Dashboards, SDKs, and notification services live outside this repository. Shade emits events; those systems consume them. |
 
 ## The actors
 
@@ -55,7 +53,7 @@ The admin **cannot** move a merchant's funds. Balances live in each merchant's o
 
 Any address that calls `register_merchant`. Registration is permissionless: it self-authorizes, and the new merchant record starts `active: true` and `verified: false`. Verification is a separate admin action that gates the features requiring it.
 
-A merchant designates a settlement account (`set_merchant_account`), creates and manages [invoices](../glossary.md#invoice), publishes [subscription plans](../glossary.md#subscription-plan), issues event tickets, opens escrows and campaigns, narrows which tokens it will accept, and withdraws its balance from its account contract.
+A merchant deploys its settlement account (`deploy_merchant_account`), creates and manages [invoices](../glossary.md#invoice), publishes [subscription plans](../glossary.md#subscription-plan), issues event tickets, opens escrows and campaigns, narrows which tokens it will accept, and withdraws its balance from its account contract.
 
 ### Payer — the customer
 
@@ -90,7 +88,7 @@ sequenceDiagram
     Note over Merchant,Shade: Merchant onboarding
     Merchant->>Shade: register_merchant(merchant)
     Shade-->>Merchant: merchant_id, emits merchant_registered_event
-    Merchant->>Shade: set_merchant_account(merchant, account)
+    Merchant->>Shade: deploy_merchant_account(merchant)
 
     Note over Merchant,Shade: Invoicing
     Merchant->>Shade: create_invoice(merchant, description, amount, token, expires_at)
@@ -119,28 +117,19 @@ Three things in that diagram are worth stating plainly, because they are what ma
 
 ## The contract suite
 
-Nine crates live under [`contracts/`](../../contracts/). `shade` is the hub; the rest are either the per-merchant account or standalone contracts deployed per deal, per event, or per campaign — usually through a matching factory.
+Two crates live under [`contracts/`](../../contracts): `shade` is the hub, and `account` is the per-merchant vault it deploys. Non-core contracts are in [`example/`](../../example/README.md).
 
 | Crate | Role | Reference |
 |---|---|---|
-| [`shade`](../../contracts/shade/) | The hub contract. Owns admin config, accepted tokens, fees, merchants, invoices, payment routing, and the on-hub subscription, escrow, ticketing, campaign, governance, and upgrade components. | [Contracts](../contracts/README.md) — *page planned* |
-| [`account`](../../contracts/account/) | The per-merchant settlement account. Holds token balances, enforces withdrawal thresholds and multi-approval, and carries the verified and restricted flags. Deployed per merchant from a WASM hash the admin registers. | [Contracts](../contracts/README.md) — *page planned* |
-| [`escrow`](../../contracts/escrow/) | A standalone two-party escrow instance: buyer, seller, required amount, and a `Created → Funded → Released` status machine. | [Contracts](../contracts/README.md) — *page planned* |
-| [`escrow_factory`](../../contracts/escrow_factory/) | Deploys `escrow` instances from an installed WASM hash and tracks every address it has deployed. | [Contracts](../contracts/README.md) — *page planned* |
-| [`ticketing`](../../contracts/ticketing/) | A standalone event contract: ticket tiers, issuance, transfer, controlled resale, check-in, cancellation, and waitlists. | [Contracts](../contracts/README.md) — *page planned* |
-| [`ticketing_factory`](../../contracts/ticketing_factory/) | Deploys one `ticketing` contract per organizer and keeps a registry of the events it has created. | [Contracts](../contracts/README.md) — *page planned* |
-| [`subscription`](../../contracts/subscription/) | A standalone recurring-billing contract: plans, subscribe, customer-authorized billing allowances, charging cycles, grace periods, upgrades and downgrades, and prorated refunds. | [Contracts](../contracts/README.md) — *page planned* |
-| [`crowdfund`](../../contracts/crowdfund/) | A standalone campaign contract: pledges, reward tiers, milestone releases gated by backer votes, matching pools, affiliate referrals, refunds, and guardian recovery. | [Contracts](../contracts/README.md) — *page planned* |
-| [`crowdfund_factory`](../../contracts/crowdfund_factory/) | Deploys `crowdfund` campaigns and gates deployment behind a reviewer and DAO proposal process. | [Contracts](../contracts/README.md) — *page planned* |
-
-> **Note:** The `shade` hub also contains components named `escrow`, `subscription`, `event`, and `campaign`. Those are hub-side records and routing that reuse the merchant, fee, and accepted-token machinery — distinct from the standalone `escrow`, `subscription`, `ticketing`, and `crowdfund` contracts deployed per instance. Which one a given integration uses is a deployment choice; see [Architecture](../architecture/README.md).
+| [`shade`](../../contracts/shade) | The hub contract. Owns admin config, accepted tokens, fees, merchants, invoices, payment routing, and the on-hub subscription, escrow, ticketing, campaign, governance, and upgrade components. | [Contracts](../contracts/README.md) — *page planned* |
+| [`account`](../../contracts/account) | The per-merchant settlement account. Holds token balances, enforces withdrawal thresholds and multi-approval, and carries the verified and restricted flags. Deployed per merchant from a WASM hash the admin registers. | [Contracts](../contracts/README.md) — *page planned* |
 
 ## Next steps
 
 - [Prerequisites and Local Toolchain Setup](prerequisites.md) — install Rust, the WASM target, and the Stellar CLI at the versions this workspace pins.
 - [Building the Contracts](building.md) — compile the workspace and produce an optimized deployment WASM. Quickstart deployment against a local network is *planned*.
 - [Running the Test Suite](running-tests.md) — how the tests are laid out and how to run a subset.
-- [Architecture](../architecture/README.md) — how the crates, factories, and shared components fit together, including [Upgradeability](../architecture/upgradeability.md).
+- [Architecture](../architecture/README.md) — how the crates and shared components fit together, including [Upgradeability](../architecture/upgradeability.md).
 - [Protocol Glossary](../glossary.md) — every domain and Soroban term used across these docs.
 
 ← [Back to Getting Started](README.md)

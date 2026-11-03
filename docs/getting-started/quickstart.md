@@ -7,12 +7,12 @@ This guide walks you end-to-end through setting up a local development environme
 ## Prerequisites
 
 Before starting, ensure you have installed:
-- **Rust & Cargo**: `rustc 1.80+` with target `wasm32-unknown-unknown`
+- **Rust & Cargo**: `rustc 1.80+` with target `wasm32v1-none`
 - **Soroban / Stellar CLI**: `stellar-cli` or `soroban-cli` v21.0+
 - **Docker**: For running a local standalone Stellar network (or use Stellar Testnet)
 
 ```bash
-rustup target add wasm32-unknown-unknown
+rustup target add wasm32v1-none
 cargo install --locked stellar-cli --features opt
 ```
 
@@ -60,7 +60,7 @@ TOKEN_ID=$(stellar contract id asset \
   --network standalone)
 
 stellar contract deploy \
-  --wasm target/wasm32-unknown-unknown/release/soroban_token_contract.wasm \
+  --wasm target/wasm32v1-none/release/soroban_token_contract.wasm \
   --source admin \
   --network standalone
 ```
@@ -83,10 +83,10 @@ stellar contract invoke \
 Build the workspace and deploy the main `shade` contract:
 
 ```bash
-cargo build --target wasm32-unknown-unknown --release -p shade
+cargo build --target wasm32v1-none --release -p shade
 
 SHADE_ID=$(stellar contract deploy \
-  --wasm target/wasm32-unknown-unknown/release/shade.wasm \
+  --wasm target/wasm32v1-none/release/shade.wasm \
   --source admin \
   --network standalone)
 

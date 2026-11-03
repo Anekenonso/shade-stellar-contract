@@ -9,7 +9,7 @@ Some merchants want recurring billing integrated with their Shade invoices, fees
 
 ## Decision
 
-Keep both: the `subscription` component inside the shade hub for simple, hub-integrated plans, and the standalone `subscription` contract for advanced billing. See [Choosing a subscription model](../../concepts/choosing-a-subscription-model.md).
+Keep both: the `subscription` component inside the shade hub for simple, hub-integrated plans, and the standalone `subscription` contract for advanced billing. See [Choosing a subscription model](../concepts/choosing-a-subscription-model.md).
 
 ## Consequences
 

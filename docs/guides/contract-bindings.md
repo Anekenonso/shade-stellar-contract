@@ -2,8 +2,6 @@
 
 How to generate a typed TypeScript client for a Shade Protocol contract, how the workspace's Soroban types surface in that client, and how to keep a generated client in sync with the WASM it targets. This page is for client/backend developers integrating with the contracts, not for contract authors — see [Building the Contracts](../getting-started/building.md) for the Rust side.
 
-> **Note:** As of this writing, `cargo build -p shade --release` and `cargo build -p crowdfund --release` fail on `main` (duplicate `#[contracttype]` definitions and missing enum variants from unmerged feature branches — see [Deployment Runbook § Known-broken baseline](../operations/deployment.md#known-broken-baseline-verify-before-you-start)). Everything below was verified by actually building and generating bindings for the `account` contract, which compiles cleanly on `main`. The commands are identical for `shade`; you cannot run them against `shade` until that crate builds again. Confirm `cargo build -p shade --release` succeeds before generating `shade` bindings for anything beyond local experimentation.
-
 ## Prerequisites
 
 - Toolchain from [Prerequisites](../getting-started/prerequisites.md): Rust ≥ 1.84.0, `wasm32-unknown-unknown` target, Stellar CLI 23.x.
@@ -146,7 +144,7 @@ initialize: ({merchant, manager, merchant_id}: {merchant: string, manager: strin
 
 ### `BytesN<32>` (and other fixed-size byte arrays)
 
-`BytesN<32>` — used for WASM hashes, signed-invoice nonces, and bridge transaction IDs — is not a distinct branded type in the generated output; it appears wherever the Rust source uses it, typically alongside other bytes handling in `@stellar/stellar-sdk`. When constructing a call that takes a `BytesN<32>` (for example, `upgrade`'s `new_wasm_hash`, or `create_invoice_signed`'s `nonce`), pass a `Buffer` or hex string of exactly 32 bytes — a shorter or longer value fails at the XDR encoding step, not at the TypeScript type-check step, since the generated bindings do not enforce byte length in the type system. Generate a nonce with a cryptographically secure random source (e.g. Node's `crypto.randomBytes(32)`), never a predictable value — see [Signed invoices](../security/signatures.md) for why the nonce must be unpredictable and single-use.
+`BytesN<32>` — used for WASM hashes, and signed-invoice nonces — is not a distinct branded type in the generated output; it appears wherever the Rust source uses it, typically alongside other bytes handling in `@stellar/stellar-sdk`. When constructing a call that takes a `BytesN<32>` (for example, `upgrade`'s `new_wasm_hash`, or `create_invoice_signed`'s `nonce`), pass a `Buffer` or hex string of exactly 32 bytes — a shorter or longer value fails at the XDR encoding step, not at the TypeScript type-check step, since the generated bindings do not enforce byte length in the type system. Generate a nonce with a cryptographically secure random source (e.g. Node's `crypto.randomBytes(32)`), never a predictable value — see [Signed invoices](../security/signatures.md) for why the nonce must be unpredictable and single-use.
 
 ### Enums: key enums vs. integer enums
 
@@ -173,7 +171,7 @@ const payload = {
 };
 ```
 
-**`#[repr(u32)]` integer enums** (like `InvoiceStatus`, `EscrowStatus`, `Role`) become a plain TypeScript `enum` with numeric values matching the Rust discriminants exactly:
+**`#[repr(u32)]` integer enums** (like `InvoiceStatus`, `Role`) become a plain TypeScript `enum` with numeric values matching the Rust discriminants exactly:
 
 ```typescript
 export enum WithdrawalStatus {
@@ -214,7 +212,7 @@ export const ContractError = {
 };
 ```
 
-An `AssembledTransaction`'s simulation failure surfaces the raw numeric code; look it up against the relevant contract's table in the [Errors reference](../reference/data-types.md) (or the contract's own `errors.rs`) to get the variant name. `shade` partitions its errors across nine numeric ranges in one contract (see the errors reference) — the same numeric code means different things on `shade` than on `account` or `escrow`, so always pair a code with the contract ID that raised it.
+An `AssembledTransaction`'s simulation failure surfaces the raw numeric code; look it up against the relevant contract's table in the [Errors reference](../reference/errors.md) (or the contract's own `errors.rs`) to get the variant name. The same numeric code means different things on `shade` than on `account`, so always pair a code with the contract ID that raised it.
 
 ## Detecting a stale or mismatched client
 

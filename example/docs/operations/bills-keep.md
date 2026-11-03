@@ -6,12 +6,12 @@ How to run the off-chain process ("keeper") that drives recurring billing for th
 
 ## Charge entry points
 
-[`contracts/subscription/src/lib.rs`](../../contracts/subscription/src/lib.rs)
+[`contracts/subscription/src/lib.rs`](../../subscription/src/lib.rs)
 
 | Function | Signature | Panics on terminal/ineligible state? | Returns |
 |---|---|---|---|
 | `charge` | `charge(sub_id: u64)` | **Yes** — panics `SubscriptionNotActive` on anything but `Active`, `ChargeTooEarly` if not yet due, `InsufficientAllowance` if the allowance can't cover `plan.amount`. | Nothing (unit) |
-| `process_charge` | `process_charge(sub_id: u64) -> ChargeOutcome` | Panics only on `Cancelled`/`Terminated` (what `ChargeOutcome::Skipped` would otherwise mean) — [`contracts/subscription/src/lib.rs#L500-L506`](../../contracts/subscription/src/lib.rs#L500-L506). Everything else resolves into a return value instead of a panic. | `ChargeOutcome` |
+| `process_charge` | `process_charge(sub_id: u64) -> ChargeOutcome` | Panics only on `Cancelled`/`Terminated` (what `ChargeOutcome::Skipped` would otherwise mean) — [`contracts/subscription/src/lib.rs#L500-L506`](../../subscription/src/lib.rs). Everything else resolves into a return value instead of a panic. | `ChargeOutcome` |
 | `process_billing_cycle` | `process_billing_cycle(sub_ids: Vec<u64>) -> Vec<ChargeOutcome>` | **No** — even a `Cancelled`/`Terminated` entry in the batch resolves to `ChargeOutcome::Skipped` rather than aborting the call. | `Vec<ChargeOutcome>`, same order as `sub_ids` |
 
 - **`charge` is the strict, single-subscription primitive.** It has no grace-period awareness at all and no graceful outcome — a failed attempt panics the whole transaction. A keeper should use it only against plans it already knows have `grace_period == 0` and only when it's confident the charge is due and funded, since any panic reverts the entire call (no partial effect, no event, nothing to react to besides the failed transaction).
@@ -20,7 +20,7 @@ How to run the off-chain process ("keeper") that drives recurring billing for th
 
 ## `ChargeOutcome` variants and keeper actions
 
-[`contracts/subscription/src/types.rs`](../../contracts/subscription/src/types.rs#L87-L110)
+[`contracts/subscription/src/types.rs`](../../subscription/src/types.rs)
 
 | Variant | Meaning | Keeper action |
 |---|---|---|
@@ -35,12 +35,12 @@ How to run the off-chain process ("keeper") that drives recurring billing for th
 
 ### Discovering due subscriptions
 
-The `subscription` contract emits **no event when a subscription is created** — neither `subscribe` nor `subscribe_with_token` publishes anything (confirmed against [`contracts/subscription/src/lib.rs`](../../contracts/subscription/src/lib.rs#L224-L298): both functions write storage and return the new `sub_id`, with no `.publish()` call). This means you cannot build your initial tracked set purely by indexing events the way [Event indexing guide](../guides/indexing-events.md) describes for the Shade hub. Two viable approaches, often used together:
+The `subscription` contract emits **no event when a subscription is created** — neither `subscribe` nor `subscribe_with_token` publishes anything (confirmed against [`contracts/subscription/src/lib.rs`](../../subscription/src/lib.rs): both functions write storage and return the new `sub_id`, with no `.publish()` call). This means you cannot build your initial tracked set purely by indexing events the way [Event indexing guide](../../../docs/guides/indexing-events.md) describes for the Shade hub. Two viable approaches, often used together:
 
 1. **Capture `sub_id` at creation time.** Whatever application flow calls `subscribe`/`subscribe_with_token` already receives the new subscription ID as the call's return value — persist it into your own keeper database the moment it's created, rather than trying to discover it later.
 2. **Enumerate from `get_subscription_count()`.** `get_subscription_count` returns the total number of subscriptions ever created, and IDs are sequential starting at 1 — a keeper can periodically scan `1..=get_subscription_count()`, calling `get_subscription(id)` for any ID it doesn't already have tracked, to catch anything missed by approach 1. This is a reasonable one-time or periodic reconciliation pass, not something to run on every sweep given the read cost of scanning every ID.
 
-Once a subscription is tracked, use `SubRenewed`/`SubExpired` events (see [Events reference § `subscription` contract](../reference/events.md#subscription-contract)) as a cheap incremental signal for "this one changed," falling back to `get_subscription` reads to disambiguate exactly what changed, since both the `Charged`→`Recovered` success path and `Cancelled`→... no — `SubExpired` in particular is emitted for both cancellation and grace-expiry termination, so the event alone can't tell you which happened; read `status` to tell them apart.
+Once a subscription is tracked, use `SubRenewed`/`SubExpired` events (see [Events reference § `subscription` contract](../../../docs/reference/events.md#subscription-contract)) as a cheap incremental signal for "this one changed," falling back to `get_subscription` reads to disambiguate exactly what changed, since both the `Charged`→`Recovered` success path and `Cancelled`→... no — `SubExpired` in particular is emitted for both cancellation and grace-expiry termination, so the event alone can't tell you which happened; read `status` to tell them apart.
 
 For each tracked, non-terminal subscription, compute its next due timestamp from `get_subscription` + `get_plan`:
 
@@ -54,7 +54,7 @@ A subscription is a candidate for the next sweep once `now >= due_at`. Include `
 
 ### Batch sizing against Soroban resource limits
 
-`process_billing_cycle` takes an unbounded `Vec<u64>` — there is no `MAX_BATCH_SIZE` constant or check anywhere in [`contracts/subscription/src/lib.rs`](../../contracts/subscription/src/lib.rs). The real ceiling is Soroban's per-transaction resource metering (CPU instructions, memory, and ledger entries read/written in one invocation) — the same constraint [Payment flows § Walkthrough: `pay_invoices_batch`](../concepts/payments.md#walkthrough-pay_invoices_batch) describes for the hub's own batch payment function. Each entry in the batch performs at minimum a `Subscription` read, a `Plan` read, a token `allowance` read, and (if charging) a `transfer_from` plus a `Subscription` write and an event publish — so the safe batch size depends on your deployment's actual resource budget, not a number this doc can hand you. Start conservative (tens of subscriptions per call, not hundreds), measure the simulated resource usage the RPC reports back for a representative batch, and size up from there with margin — a batch that exceeds the budget fails the entire transaction with no partial progress, which is strictly worse than just running more, smaller batches.
+`process_billing_cycle` takes an unbounded `Vec<u64>` — there is no `MAX_BATCH_SIZE` constant or check anywhere in [`contracts/subscription/src/lib.rs`](../../subscription/src/lib.rs). The real ceiling is Soroban's per-transaction resource metering (CPU instructions, memory, and ledger entries read/written in one invocation) — the same constraint [Payment flows § Walkthrough: `pay_invoices_batch`](../../../docs/concepts/payments.md#walkthrough-pay_invoices_batch) describes for the hub's own batch payment function. Each entry in the batch performs at minimum a `Subscription` read, a `Plan` read, a token `allowance` read, and (if charging) a `transfer_from` plus a `Subscription` write and an event publish — so the safe batch size depends on your deployment's actual resource budget, not a number this doc can hand you. Start conservative (tens of subscriptions per call, not hundreds), measure the simulated resource usage the RPC reports back for a representative batch, and size up from there with margin — a batch that exceeds the budget fails the entire transaction with no partial progress, which is strictly worse than just running more, smaller batches.
 
 ### Run cadence
 
@@ -72,14 +72,14 @@ Together, this means a keeper can safely retry an uncertain transaction (dropped
 
 ## Monitoring and alerting
 
-- **Failed transactions.** Any `charge`/`process_charge`/`process_billing_cycle` call that fails at the transaction layer (expired footprint, insufficient fee, bad sequence number — see [Errors reference § Transaction-layer failures](../reference/errors.md)) produced no on-chain effect and no event; alert on these directly from your submission client's response, since there is nothing on-chain to reconcile against afterward.
+- **Failed transactions.** Any `charge`/`process_charge`/`process_billing_cycle` call that fails at the transaction layer (expired footprint, insufficient fee, bad sequence number — see [Errors reference § Transaction-layer failures](../../../docs/reference/errors.md)) produced no on-chain effect and no event; alert on these directly from your submission client's response, since there is nothing on-chain to reconcile against afterward.
 - **Rising `EnteredGrace` counts.** Track how many subscriptions return `EnteredGrace` per sweep, and especially track subscriptions that have been `PastDue` across multiple consecutive sweeps without recovering — a sustained rise can indicate a token-side problem (customers' balances genuinely drained) or, as important, a keeper-side problem (your own retry logic failing to actually resubmit authorizations, or a bug in how you compute `due_at`). Since no event marks grace entry, this metric must come from your own logged `ChargeOutcome` values, not from an event stream.
 - **Keeper account balance for fees.** The account submitting `charge`/`process_charge`/`process_billing_cycle` transactions pays the Soroban transaction fee for every call regardless of outcome (`Charged`, `NotDueYet`, or anything else) — a keeper that runs out of its own native-token balance stops being able to submit transactions at all, silently halting every subscription's billing simultaneously. Alert well before this account's balance is exhausted, not after.
 - **Termination rate as a lagging indicator.** `Terminated` outcomes are the cost of unresolved grace — if your `EnteredGrace` alerting above is working, terminations should be rare and expected (customers who genuinely churned), not a surprise. A termination rate that doesn't track your grace-period alerting is a sign the monitoring pipeline itself has a gap.
 
 ## Reference keeper script outline
 
-The outline below follows the generated TypeScript client pattern from [Generating and using contract bindings](../guides/contract-bindings.md). This is illustrative structure, not a drop-in implementation — there is no keeper implementation in this repository today; a real one would most naturally live under a new top-level directory (e.g. `keepers/subscription-billing/`) alongside its own `package.json`, independent of the Rust contract workspace.
+The outline below follows the generated TypeScript client pattern from [Generating and using contract bindings](../../../docs/guides/contract-bindings.md). This is illustrative structure, not a drop-in implementation — there is no keeper implementation in this repository today; a real one would most naturally live under a new top-level directory (e.g. `keepers/subscription-billing/`) alongside its own `package.json`, independent of the Rust contract workspace.
 
 ```typescript
 import { Client } from "../bindings/subscription/src/index.js";
@@ -147,13 +147,13 @@ async function sweep(db: KeeperDb) {
 setInterval(() => sweep(db).catch(alertOnFailure), SWEEP_INTERVAL_MS);
 ```
 
-`keeperSigner` should be a `signTransaction` callback backed by a secret held in a secret manager, never inlined — see the [contract bindings guide's signing note](../guides/contract-bindings.md#using-the-generated-client-in-an-application). The keeper account itself needs no special authorization on the subscription contract — `process_billing_cycle` and `process_charge` require no caller auth at all (only the customer's own token allowance gates the actual fund movement), so any funded account can run this sweep.
+`keeperSigner` should be a `signTransaction` callback backed by a secret held in a secret manager, never inlined — see the [contract bindings guide's signing note](../../../docs/guides/contract-bindings.md#using-the-generated-client-in-an-application). The keeper account itself needs no special authorization on the subscription contract — `process_billing_cycle` and `process_charge` require no caller auth at all (only the customer's own token allowance gates the actual fund movement), so any funded account can run this sweep.
 
 ## Related pages
 
 - [Subscription contract reference](../contracts/subscription.md) — full type, function, lifecycle, and error listing.
 - [Subscription grace periods and past-due handling](../concepts/subscription-grace-periods.md) — the state machine this keeper drives, including which transitions emit events.
 - [Subscription billing authorization and allowances](../concepts/subscription-billing-authorization.md) — how customers grant and restore the allowance a keeper's charge attempts depend on.
-- [Payment flows: full, partial, and batch § Walkthrough: `pay_invoices_batch`](../concepts/payments.md#walkthrough-pay_invoices_batch) — the same Soroban resource-metering ceiling discussed here, for the hub's own batch payment function.
-- [Events reference § `subscription` contract](../reference/events.md#subscription-contract) — `SubRenewed`/`SubExpired` payloads.
-- [Generating and using contract bindings](../guides/contract-bindings.md) — the TypeScript client pattern the keeper outline above builds on.
+- [Payment flows: full, partial, and batch § Walkthrough: `pay_invoices_batch`](../../../docs/concepts/payments.md#walkthrough-pay_invoices_batch) — the same Soroban resource-metering ceiling discussed here, for the hub's own batch payment function.
+- [Events reference § `subscription` contract](../../../docs/reference/events.md#subscription-contract) — `SubRenewed`/`SubExpired` payloads.
+- [Generating and using contract bindings](../../../docs/guides/contract-bindings.md) — the TypeScript client pattern the keeper outline above builds on.

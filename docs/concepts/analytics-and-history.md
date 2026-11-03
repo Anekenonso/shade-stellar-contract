@@ -10,7 +10,7 @@ The Shade contract accumulates per-[merchant](../glossary.md#merchant), per-toke
 
 ### Analytics recording
 
-Every successful invoice payment or subscription charge calls `record_merchant_payment`, which atomically updates three analytics stores:
+Every successful invoice payment calls `record_merchant_payment`, which atomically updates three analytics stores:
 
 1. **Per-merchant, per-token** (`MerchantAnalytics`) — volume, fees, and count for a specific merchant and token pair.
 2. **Per-merchant summary** (`MerchantAnalyticsSummary`) — aggregated across all tokens for a given merchant.
@@ -34,11 +34,11 @@ flowchart LR
 
 | Type / key | Defined in | Purpose |
 |---|---|---|
-| `MerchantAnalytics` | [`contracts/shade/src/types.rs#L458-L465`](../../../contracts/shade/src/types.rs#L458-L465) | Per-merchant, per-token volume, fees, and count |
-| `MerchantAnalyticsSummary` | [`contracts/shade/src/types.rs#L469-L475`](../../../contracts/shade/src/types.rs#L469-L475) | Per-merchant aggregate across all tokens |
-| `TokenAnalytics` | [`contracts/shade/src/types.rs#L536-L543`](../../../contracts/shade/src/types.rs#L536-L543) | Global per-token volume, fees, unique merchants |
-| `Transaction` | [`contracts/shade/src/types.rs#L555-L563`](../../../contracts/shade/src/types.rs#L555-L563) | Individual transaction record |
-| `TransactionType` | [`contracts/shade/src/types.rs#L548-L551`](../../../contracts/shade/src/types.rs#L548-L551) | `InvoicePayment` or `SubscriptionCharge` |
+| `MerchantAnalytics` | [`contracts/shade/src/types.rs#L458-L465`](../../contracts/shade/src/types.rs) | Per-merchant, per-token volume, fees, and count |
+| `MerchantAnalyticsSummary` | [`contracts/shade/src/types.rs#L469-L475`](../../contracts/shade/src/types.rs) | Per-merchant aggregate across all tokens |
+| `TokenAnalytics` | [`contracts/shade/src/types.rs#L536-L543`](../../contracts/shade/src/types.rs) | Global per-token volume, fees, unique merchants |
+| `Transaction` | [`contracts/shade/src/types.rs#L555-L563`](../../contracts/shade/src/types.rs) | Individual transaction record |
+| `TransactionType` | [`contracts/shade/src/types.rs#L548-L551`](../../contracts/shade/src/types.rs) | `InvoicePayment` |
 
 ### MerchantAnalytics fields
 
@@ -72,8 +72,8 @@ flowchart LR
 
 | Field | Type | Description |
 |---|---|---|
-| `transaction_type` | `TransactionType` | `InvoicePayment` or `SubscriptionCharge` |
-| `ref_id` | `u64` | Reference ID (invoice or subscription ID) |
+| `transaction_type` | `TransactionType` | `InvoicePayment` |
+| `ref_id` | `u64` | Invoice ID |
 | `amount` | `i128` | Payment amount |
 | `token` | `Address` | Token used for payment |
 | `description` | `String` | Human-readable description |
@@ -84,18 +84,17 @@ flowchart LR
 
 | Function | Defined in | Purpose |
 |---|---|---|
-| `record_merchant_payment` | [`contracts/shade/src/components/admin.rs#L243-L278`](../../../contracts/shade/src/components/admin.rs#L243-L278) | Update analytics after a payment |
-| `get_merchant_volume` | [`contracts/shade/src/components/admin.rs#L208-L210`](../../../contracts/shade/src/components/admin.rs#L208-L210) | Read total volume for a merchant/token pair |
-| `get_merchant_analytics` | [`contracts/shade/src/components/admin.rs#L212-L228`](../../../contracts/shade/src/components/admin.rs#L212-L228) | Read full analytics for a merchant/token pair |
-| `get_merchant_analytics_summary` | [`contracts/shade/src/components/admin.rs#L230-L241`](../../../contracts/shade/src/components/admin.rs#L230-L241) | Read aggregated analytics across all tokens |
-| `get_token_analytics` | [`contracts/shade/src/components/admin.rs#L280-L292`](../../../contracts/shade/src/components/admin.rs#L280-L292) | Read global token analytics |
-| `get_user_transactions` | [`contracts/shade/src/components/history.rs#L17-L22`](../../../contracts/shade/src/components/history.rs#L17-L22) | Read full transaction log for a user |
+| `record_merchant_payment` | [`contracts/shade/src/components/analytics.rs#L243-L278`](../../contracts/shade/src/components/analytics.rs) | Update analytics after a payment |
+| `get_merchant_volume` | [`contracts/shade/src/components/analytics.rs#L208-L210`](../../contracts/shade/src/components/analytics.rs) | Read total volume for a merchant/token pair |
+| `get_merchant_analytics` | [`contracts/shade/src/components/analytics.rs#L212-L228`](../../contracts/shade/src/components/analytics.rs) | Read full analytics for a merchant/token pair |
+| `get_merchant_analytics_summary` | [`contracts/shade/src/components/analytics.rs#L230-L241`](../../contracts/shade/src/components/analytics.rs) | Read aggregated analytics across all tokens |
+| `get_token_analytics` | [`contracts/shade/src/components/analytics.rs#L280-L292`](../../contracts/shade/src/components/analytics.rs) | Read global token analytics |
+| `get_user_transactions` | [`contracts/shade/src/components/history.rs#L17-L22`](../../contracts/shade/src/components/history.rs) | Read full transaction log for a user |
 
 ## What analytics do not cover
 
 - **Refund adjustments.** Refunds do not reduce `total_volume`, `total_fees`, or `transaction_count`. The analytics reflect gross activity, not net.
 - **Off-chain activity.** Payments settled entirely off-chain or through external systems are invisible to on-chain analytics.
-- **Some ticketing volume.** `purchase_ticket` is recorded because it uses the fee router. `purchase_tickets_bulk`, `resell_ticket`, and `buy_ticket_from_listing` are not. See [Token analytics and market share metrics](./token-analytics.md#volume-accounting).
 - **Expired or pruned data.** On-chain data persists indefinitely; there is no automatic pruning. The `last_updated` field indicates freshness but does not expire.
 
 ## On-chain analytics vs. event indexing
@@ -111,6 +110,6 @@ Use on-chain analytics for dashboards, quick queries, and verification. Use even
 
 ## Related pages
 
-- [Token analytics and market share metrics](./token-analytics.md)
-- [Invoices and payment](./payment-payloads-and-routing.md)
-- [Auto-withdrawal and merchant settlement](./auto-withdrawal.md)
+- [Token analytics and market share metrics](token-analytics.md)
+- [Invoices and payment](payment-payloads-and-routing.md)
+- [Auto-withdrawal and merchant settlement](auto-withdrawal.md)

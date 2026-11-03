@@ -1,26 +1,8 @@
 # Runbook: Deploying the Shade Protocol contracts
 
-Deploy the `shade` hub contract (and, where your integration needs them, the standalone `account`, `escrow_factory`, `ticketing_factory`, and `crowdfund_factory` contracts) to local, testnet, or mainnet, and bring the deployment to a usable state.
+Deploy the `shade` hub contract to local, testnet, or mainnet, and bring the deployment to a usable state.
 
 > **Warning:** Once merchants have registered and invoices exist against a `shade` contract ID, that ID is permanent for that deployment's data — see [Upgradeability](../architecture/upgradeability.md) for what an upgrade can and cannot change. Mainnet deployment is effectively a one-way door for the identity of the contract your integrators build against.
-
-## Known-broken baseline — verify before you start
-
-As of this writing (`main` at `027ef11`), the repository does **not** build cleanly:
-
-- `cargo build -p shade --release` fails with ~120 compiler errors (duplicate `#[contracttype]` implementations for `VestingSchedule`, missing `DataKey`/`ContractError` variants referenced by an in-progress KYC feature, and related issues from overlapping feature-branch merges).
-- `cargo build -p crowdfund --release` fails separately (non-exhaustive `DataKey` match in `contracts/crowdfund/src/lib.rs`).
-- GitHub Actions CI (`ci.yml`) has been failing on `main` across the last several merges.
-- `account`, `escrow`, `escrow_factory`, `ticketing`, `ticketing_factory`, and `subscription` build and produce WASM cleanly in isolation (`cargo build -p <crate> --target wasm32-unknown-unknown --release`).
-
-**Do not deploy `shade` or `crowdfund` from `main` at this commit.** Before running any command in this runbook:
-
-```bash
-cargo build --workspace --release
-cargo test -p shade
-```
-
-If either fails, either wait for the breakage to be fixed upstream, or pin your deployment to the last commit where both passed (check `gh run list --branch main` or the Actions tab for the most recent green `CI` run and deploy from that commit's SHA, not from `main`'s tip). Do not "fix" the compile errors yourself as part of a deployment — that is a code change with its own review, not an operations task.
 
 ## Pre-deployment checklist
 
@@ -38,15 +20,8 @@ If either fails, either wait for the breakage to be fixed upstream, or pin your 
 
 ## What actually gets deployed
 
-Read this before following the issue tracker's or anyone else's mental model of "the deployment": **the four standalone factories (`escrow_factory`, `ticketing_factory`, `crowdfund_factory`, and the `account` contract itself) are not wired into `shade` at all.** There is no `set_escrow_factory`, `set_ticketing_factory`, or equivalent call anywhere in `contracts/shade/src/`, and `shade`'s own `account_factory` component (`contracts/shade/src/components/account_factory.rs`) is dead code — `register_merchant` (`contracts/shade/src/components/merchant.rs`) does not call it. `set_account_wasm_hash` therefore stores a hash that nothing in the current code path reads.
-
-This means there is no cross-contract "deployment ordering" enforced by the protocol the way earlier issue drafts assumed. What you actually have is:
-
-1. **`shade`** — the payment hub. Fully self-contained once initialized and configured; does not need any other contract deployed to accept invoice payments.
-2. **`account`** (optional per merchant) — a separate contract you deploy once per merchant who wants an on-chain vault instead of receiving funds directly at their wallet address. Independent of `shade`'s deployment.
-3. **`escrow_factory`**, **`ticketing_factory`**, **`crowdfund_factory`** — fully independent contracts. Deploy any of them, in any order, only if your integration uses on-chain escrow, ticketing, or crowdfunding *outside* `shade`'s own built-in escrow/ticketing/campaign components (`shade` has its own internal escrow, event, and campaign logic — see [ShadeTrait reference](../reference/shade-interface.md) — that does not go through these factories at all).
-
-If your integration only needs invoices, subscriptions, `shade`'s built-in escrow/tickets/campaigns, and merchants paid directly to their wallets, **you only need to deploy `shade`.** Deploy the factories and `account` only if you specifically need the standalone contracts they produce.
+1. **`shade`** — the payment hub.
+2. **The `account` WASM** — uploaded once, not deployed. Its hash is registered with `set_account_wasm_hash`, and each merchant then deploys their own instance with `deploy_merchant_account`.
 
 ## Local
 
@@ -64,7 +39,7 @@ NETWORK=local make deploy-shade ADMIN=<admin-address>
 NETWORK=local make init-shade ADMIN=<admin-address>
 ```
 
-`make deploy-shade` runs `stellar contract deploy --wasm target/wasm32-unknown-unknown/release/shade.optimized.wasm --network local --source-account default` and writes the resulting contract ID to `.stellar/shade_contract_id.txt`. `make init-shade` reads that file and runs `stellar contract invoke --id $(cat .stellar/shade_contract_id.txt) --network local --source-account default -- initialize --admin $(ADMIN)`.
+`make deploy-shade` runs `stellar contract deploy --wasm target/wasm32v1-none/release/shade.optimized.wasm --network local --source-account default` and writes the resulting contract ID to `.stellar/shade_contract_id.txt`. `make init-shade` reads that file and runs `stellar contract invoke --id $(cat .stellar/shade_contract_id.txt) --network local --source-account default -- initialize --admin $(ADMIN)`.
 
 > **Note:** The Makefile's `deploy-shade`/`deploy-account`/`init-shade` targets use `--source-account default`, a CLI identity named `default` — set one up with `stellar keys generate default --network local` (or override by invoking the underlying `stellar contract deploy`/`invoke` commands directly with your own `--source-account`) before running `make`.
 
@@ -164,7 +139,7 @@ stellar contract invoke --id <shade-id> --network testnet -- get_invoice --invoi
 
 For a broader pre-merge regression check (not a lightweight post-deploy smoke test), `contracts/shade/src/tests/test_payment.rs::test_successful_payment_with_fee` and `contracts/shade/src/tests/test_auto_withdrawal.rs` are the most complete register → invoice → pay flows in the test suite, including a real `account` contract instance in the latter. Both run against the native build via `cargo test`, not against a deployed network — they verify the logic, not a specific deployment.
 
-> **Note:** `pay_invoice` requires the merchant to have a resolvable account. If you skip `set_merchant_account`, the merchant's `account` field defaults to their own wallet address at registration (`register_merchant` in `contracts/shade/src/components/merchant.rs`), which is enough for the smoke test above to succeed without deploying a separate `account` contract. `test_payment_merchant_account_not_set` in `test_payment.rs` documents the one case where an unset account causes a failure.
+> **Note:** `pay_invoice` requires the merchant to have called `deploy_merchant_account`. Otherwise it fails with `MerchantAccountNotSet` (20).
 
 ## Mainnet
 
@@ -237,11 +212,10 @@ What can and cannot be undone, by stage:
 | Stage | Reversible? | How |
 |---|---|---|
 | Deploy failed before `initialize` | Yes | The contract instance exists at a contract ID but holds no state. Abandon that ID; redeploy fresh. Nothing to clean up on-chain — an unused, uninitialized contract instance is not a liability, just an unused address. |
-| Factory deployment failed (`escrow_factory`/`ticketing_factory`/`crowdfund_factory`) | Yes | Same as above — these are independent of `shade`; a failed factory deploy has no effect on anything else. Redeploy. |
 | `shade` deployed but `initialize` failed partway (should not partially apply — Soroban transactions are atomic) | Yes | If `initialize` genuinely never committed, `get_admin` will panic with `NotInitialized`. Re-run `initialize`. If it *did* commit with the wrong admin, this is not a "failed" state — see [Initialize](#initialize) above; you're now in a live-with-wrong-config scenario, not a rollback-eligible one. |
 | Post-deployment configuration step failed or was wrong (wrong fee, wrong token, wrong oracle) | Yes, if caught before payments settle against it | Re-run the same `set_*` call with the corrected value. `set_fee` applies immediately; a wrong fee that already collected payments cannot retroactively refund the difference — see [Admin Runbook § Fees](admin-runbook.md#routine-operation-fees). |
 | Protocol is live, merchants have registered, invoices exist, and configuration needs to change | Partially | Fees, accepted tokens, oracles, and roles can all be changed going forward via their respective `set_*`/`grant_role`/`revoke_role` calls (see [Admin Runbook](admin-runbook.md)). Past invoices, payments, and analytics already recorded are not retroactively affected by a later config change — this is by design, not a gap. |
-| Irreversible on-chain state already created (invoices paid, subscriptions charged, tickets sold, funds distributed) | **No** | Soroban has no contract-deletion or state-rollback mechanism. A materially wrong deployment discovered after real payment activity is a [pause](admin-runbook.md#pause-procedure) situation, not a rollback — see the [Admin Runbook's incident response section](admin-runbook.md#incident-response) and the [Upgrade Runbook](upgrade-runbook.md) if the fix requires new contract code. |
+| Irreversible on-chain state already created (invoices paid, funds distributed) | **No** | Soroban has no contract-deletion or state-rollback mechanism. A materially wrong deployment discovered after real payment activity is a [pause](admin-runbook.md#pause-procedure) situation, not a rollback — see the [Admin Runbook's incident response section](admin-runbook.md#incident-response) and the [Upgrade Runbook](upgrade-runbook.md) if the fix requires new contract code. |
 
 **There is no "undeploy" operation.** A Soroban contract instance, once created, exists at its contract ID permanently; you cannot delete it or reclaim the address. Treat every deployment — especially mainnet — as something you're choosing to make permanent at the moment you run `stellar contract deploy`, not something you can quietly walk back if the smoke test surfaces a problem five minutes later.
 

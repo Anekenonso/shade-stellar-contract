@@ -4,10 +4,12 @@ This page documents the reentrancy guard, where it is applied, and the rules a c
 
 ## Reentrancy risk in Soroban
 
+> **Note:** The Soroban host rejects a call back into a contract that is already on the call stack. The guard below is defense in depth, not the only protection.
+
 In Soroban, a contract can re-enter itself or other contracts during execution. Re-entrant calls can occur through:
 
 - **SEP-41 token transfers:** `transfer`, `transfer_from`, and `approve` callbacks to token contracts can re-enter the Shade contract.
-- **Factory-deployed contracts:** Newly deployed account or escrow contracts may invoke Shade functions during their constructor.
+- **Factory-deployed contracts:** Newly deployed account contracts may invoke Shade functions during their constructor.
 - **Cross-contract calls:** Any `invoke_contract` or `call` to an external contract that calls back into Shade.
 
 Reentrancy is dangerous when a function updates state *after* an external call. An attacker could re-enter during the external call and observe or manipulate stale state.
@@ -47,11 +49,7 @@ Every function that makes external calls (token transfers, cross-contract invoca
 | Component | Functions guarded |
 |-----------|-------------------|
 | `admin` | `add_accepted_token`, `add_accepted_tokens`, `remove_accepted_token`, `set_fee`, `set_platform_account`, `set_token_oracle`, `propose_fee`, `execute_fee` |
-| `campaign` | `create_campaign`, `configure_campaign_fee_policy`, `record_campaign_contribution`, `stake_campaign`, `slash_campaign_stake`, `register_affiliate`, `pay_affiliate_commission` |
-| `campaigns` | `record_contribution`, `create_campaign` |
 | `platform_fee` | `set_merchant_platform_fee`, `clear_merchant_platform_fee` |
-| `kyc` | Multiple KYC verification and restriction functions |
-| `fiat_goals` | Fiat-pegged goal contribution tracking |
 
 Functions that only read state or write state without external calls (e.g., `get_invoice`, `is_paused`) do not use the guard.
 

@@ -1,97 +1,50 @@
 # Workspace and Crate Layout
 
-This document provides a comprehensive guide to the Cargo workspace architecture, directory structure, crate boundaries, and standard file conventions within the Shade Protocol smart contract repository.
+The Cargo workspace, directory structure, crate boundaries, and standard file conventions of this repository.
 
----
+## Workspace configuration (`Cargo.toml`)
 
-## Workspace Configuration (`Cargo.toml`)
+- **Members:** `members = ["contracts/*"]` picks up the `shade` and `account` crates.
+- **Excluded:** `exclude = ["example"]`. The `example/` directory has its own workspace, so root builds, tests and CI never touch it.
+- **Dependency pinning:** `[workspace.dependencies]` sets `soroban-sdk = "23.4.0"`, and `Cargo.lock` is committed.
+- **Release profile:** `opt-level = "z"`, `codegen-units = 1`, `lto = true` and `strip = "symbols"` keep the WASM small.
 
-The repository is configured as a multi-package Cargo workspace with:
-- **Member Glob**: `members = ["contracts/*"]` to automatically discover and link all contract crates.
-- **Resolver**: `resolver = "2"` ensuring modern, unified feature resolution across compilation targets.
-- **Dependency Pinning**: `[workspace.dependencies]` pins `soroban-sdk = "23.4.0"` uniformly across all workspace members.
-- **Release Optimization Profile**: Sets `opt-level = "z"`, `codegen-units = 1`, `lto = true`, and `strip = "symbols"` for minimal WASM bytecode footprint on-chain.
-
----
-
-## Annotated Directory Tree
+## Directory tree
 
 ```text
 shade-stellar-contract/
-├── .github/
-│   └── workflows/              # CI/CD pipelines (test, build, lint, audit)
-├── .pre-commit-config.yaml     # Git pre-commit hook definitions
-├── Cargo.lock                  # Pinned workspace dependency lockfile
-├── Cargo.toml                  # Workspace root configuration
-├── Makefile                    # Developer shortcut commands (build, test, fmt, clean)
-├── README.md                   # Repository overview and quickstart links
+├── .github/workflows/      # CI: tests, formatting, clippy, WASM build, docs
 ├── contracts/
-│   ├── account/                # Per-merchant dedicated account contract
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   ├── crowdfund/              # Crowdfunding campaign contract
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   ├── crowdfund_factory/      # Deterministic crowdfund deployment factory
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   ├── escrow/                 # Conditional release & milestone escrow contract
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   ├── escrow_factory/         # Escrow contract deployment factory
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   ├── shade/                  # Core hub gateway contract (invoices, merchants, fees)
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   ├── subscription/           # Recurring billing & streaming subscription contract
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   ├── ticketing/              # Event ticketing and pass issuance contract
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   └── ticketing_factory/      # Ticketing contract deployment factory
-│       ├── Cargo.toml
-│       └── src/
-├── docs/                       # Architecture, getting-started, and contract reference docs
-└── scripts/                    # Deployment, testing, and maintenance automation scripts
+│   ├── account/            # Per-merchant vault contract
+│   └── shade/              # Payment gateway hub
+├── docs/                   # This documentation
+├── example/                # Non-core contracts and modules (separate workspace, outside CI)
+├── scripts/                # Developer tooling
+├── Cargo.lock
+├── Cargo.toml
+├── Makefile
+└── README.md
 ```
 
----
+## Crates
 
-## Crate Registry
+| Crate | Purpose | Key modules | Reference |
+|---|---|---|---|
+| `shade` | Merchants, invoices, fee routing, refunds, analytics, access control | `shade`, `shade_interface`, `types`, `errors`, `events`, `components/` | [Shade](../contracts/shade.md) |
+| `account` | Per-merchant vault: balances, withdrawals, refunds, restrictions | `account`, `interface`, `types`, `errors`, `events` | [Account](../contracts/account.md) |
 
-| Crate Name | Purpose & Domain | Deployable Contract? | Key Modules | Documentation Reference |
-| :--- | :--- | :---: | :--- | :--- |
-| **`shade`** | Core payment hub, invoice lifecycle, fee routing, role-based access | **Yes** | `lib`, `interface`, `types`, `errors`, `events`, `components/` | [Hub Reference](../contracts/shade.md) |
-| **`account`** | Per-merchant isolated vault for balance tracking & restricted withdrawals | **Yes** | `lib`, `interface`, `types`, `errors`, `events` | [Account Reference](../contracts/account.md) |
-| **`crowdfund`** | Decentralized crowdfunding campaigns with goal thresholds & backer refunds | **Yes** | `lib`, `interface`, `types`, `errors` | [Crowdfund Reference](../contracts/crowdfund.md) |
-| **`crowdfund_factory`** | Factory contract for deterministic crowdfund instance deployment | **Yes** | `lib`, `factory` | [Cross-Contract Architecture](cross-contract-calls.md) |
-| **`escrow`** | Two-party and multi-party milestone-based funds holding and release | **Yes** | `lib`, `interface`, `types`, `errors` | [Escrow Reference](../contracts/escrow.md) |
-| **`escrow_factory`** | Factory contract for deterministic escrow instance deployment | **Yes** | `lib`, `factory` | [Cross-Contract Architecture](cross-contract-calls.md) |
-| **`subscription`** | Automated recurring merchant subscriptions and billing schedules | **Yes** | `lib`, `interface`, `types`, `errors` | [Subscription Reference](../contracts/subscription.md) |
-| **`ticketing`** | NFT-backed event ticket issuance, validation, and check-in | **Yes** | `lib`, `interface`, `types`, `errors` | [Ticketing Reference](../contracts/ticketing.md) |
-| **`ticketing_factory`** | Factory contract for deploying event ticket instances | **Yes** | `lib`, `factory` | [Cross-Contract Architecture](cross-contract-calls.md) |
+`shade` depends on `account` only in tests. At runtime the hub reaches accounts through small `#[contractclient]` traits and deploys them from a stored WASM hash.
 
----
+## Contract crate structure
 
-## Standard Contract Crate Structure
+1. **`lib.rs`** declares the modules.
+2. **The interface** (`shade_interface.rs`, `interface.rs`) is the `#[contracttrait]` listing every exported function.
+3. **The contract** (`shade.rs`, `account.rs`) implements that trait.
+4. **`types.rs`**, **`errors.rs`** and **`events.rs`** hold stored records and keys, error codes, and events.
+5. **`components/`** (`shade` only) holds the logic for each feature.
+6. **`tests/`** holds tests, using `soroban_sdk::testutils`.
 
-Every contract crate under `contracts/` adheres to a strict modular structure:
+## Related pages
 
-1. **`lib.rs`**: Entry point exporting the `#[contract]` struct, method implementations, and module declarations.
-2. **`interface.rs`**: Defines the public Soroban `#[contracttrait]` specifying signatures and argument orders.
-3. **`types.rs`**: Custom Soroban `#[contracttype]` data structures (e.g. `Invoice`, `Merchant`, `TokenBalance`).
-4. **`errors.rs`**: Strongly-typed `#[contracterror]` enum defining all domain-specific error codes.
-5. **`events.rs`**: Event emission helpers publishing structured telemetry to the host ledger.
-6. **`components/`** *(Optional)*: Reusable internal sub-modules (e.g. `account_factory`, `payment_engine`).
-7. **`tests/`** *(or `test.rs`)*: Comprehensive unit and integration tests using `soroban-sdk::testutils`.
-
----
-
-## Repository Support Files
-
-- **`Makefile`**: Standard build workflows (`make build`, `make test`, `make fmt`, `make clean`).
-- **`.pre-commit-config.yaml`**: Pre-commit hooks for formatting (`cargo fmt`), linting (`cargo clippy`), and trailing whitespace validation.
-- **`.github/workflows/`**: Continuous Integration pipelines executing on every PR and main merge.
-- **`scripts/`**: Shell and TypeScript scripts automating testnet deployment and cross-contract initialization.
+- [Architecture overview](overview.md)
+- [The component pattern](component-pattern.md)

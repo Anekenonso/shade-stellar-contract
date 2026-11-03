@@ -2,7 +2,7 @@
 
 Tiers let an event organizer split one event into priced categories (for example General Admission and VIP), each with its own price label and supply cap. They are implemented in the standalone `ticketing` contract (`contracts/ticketing/`), not in the Shade hub's built-in ticketing feature.
 
-> **Note:** `ticketing` is a separate system from the hub ticketing described in [Event ticketing, dynamic pricing, and resale](./event-ticketing.md). The two share no code or storage. See the [ticketing contract reference](../contracts/ticketing.md) for the full interface.
+> **Note:** `ticketing` is a separate system from the hub ticketing described in [Event ticketing, dynamic pricing, and resale](event-ticketing.md). The two share no code or storage. See the [ticketing contract reference](../contracts/ticketing.md) for the full interface.
 
 ## Why it exists
 
@@ -50,7 +50,7 @@ Storage keys (persistent): `Tier(tier_id)`, `TierCount`, and `EventTiers(event_i
 | `get_tier(tier_id) -> Tier` | None | Read one tier. Panics with `TierNotFound` if missing. |
 | `get_event_tiers(event_id) -> Vec<Tier>` | None | Read all tiers of an event in creation order. Returns an empty list if the event has none or does not exist. |
 
-All four are defined in [`contracts/ticketing/src/lib.rs`](../../contracts/ticketing/src/lib.rs).
+All four are defined in [`contracts/ticketing/src/lib.rs`](../../ticketing/src/lib.rs).
 
 ## Supply and capacity invariants
 
@@ -72,7 +72,7 @@ active tickets of the event <= cap (enforced by issue_tiered_ticket)
 
 `Tier.price` is metadata. `issue_tiered_ticket` does not collect payment and does not check any amount against `price`; settlement happens outside the call. The tier price interacts with other features as follows:
 
-- **Dynamic pricing.** The early-bird and late-markup pricing in [Event ticketing](./event-ticketing.md) belongs to the Shade hub and has no counterpart in the `ticketing` contract. A tier's `price` is fixed at creation and there is no function to change it. To change prices, add a new tier.
+- **Dynamic pricing.** The early-bird and late-markup pricing in [Event ticketing](event-ticketing.md) belongs to the Shade hub and has no counterpart in the `ticketing` contract. A tier's `price` is fixed at creation and there is no function to change it. To change prices, add a new tier.
 - **Resale caps.** `set_resale_config` stores only a `payment_token` and a `royalty_bps` per event. `resell_ticket` accepts any `sale_price > 0`, so there is no price ceiling or floor, and it does not compare the sale price to the tier price. The royalty is a share of the resale price paid to the organizer. `Ticket.tier_id` does not change on resale.
 - **Refunds.** `refund_ticket` marks the ticket `refunded`, removes it from the event's active list (freeing event capacity), and assigns the first waitlist entry a new ticket. It moves no tokens and does not decrement `Tier.sold`. A refunded ticket keeps consuming its tier's `max_supply`.
 
@@ -96,7 +96,7 @@ active tickets of the event <= cap (enforced by issue_tiered_ticket)
 
 ## Example: three tiers
 
-This follows the patterns in [`contracts/ticketing/src/test_tiers.rs`](../../contracts/ticketing/src/test_tiers.rs), which covers sequential IDs, independent `sold` counters, tier sell-out, mismatched events, and the capacity check. The scenario below is illustrative; the test file itself uses two tiers.
+This follows the patterns in [`contracts/ticketing/src/test_tiers.rs`](../../ticketing/src/test_tiers.rs), which covers sequential IDs, independent `sold` counters, tier sell-out, mismatched events, and the capacity check. The scenario below is illustrative; the test file itself uses two tiers.
 
 An event with `max_capacity = 200` gets three tiers:
 
@@ -123,4 +123,4 @@ Adding a fourth tier with `max_supply >= 1` fails with `TierAtCapacity` because 
 ## Related pages
 
 - [Ticketing contract reference](../contracts/ticketing.md)
-- [Event ticketing, dynamic pricing, and resale](./event-ticketing.md)
+- [Event ticketing, dynamic pricing, and resale](event-ticketing.md)

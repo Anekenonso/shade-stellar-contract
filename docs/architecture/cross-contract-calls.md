@@ -6,15 +6,15 @@ This document details how the Shade Protocol executes cross-contract calls, mana
 
 ## The Factory Pattern in Shade
 
-Shade uses deterministic on-chain contract factories to deploy isolated smart contract instances for specific merchant profiles, escrow agreements, and event ticketing campaigns.
+Shade uses a deterministic on-chain contract factory to deploy one isolated `account` contract per merchant.
 
 ### How On-Chain Factories Work
 1. **WASM Hash Registration**: An administrator uploads the compiled bytecode of the child contract to the Stellar ledger, producing a 32-byte `wasm_hash`. The admin then registers this hash in the hub contract (e.g. `set_account_wasm_hash`).
-2. **Deterministic Salt Derivation**: When a deployment trigger is invoked, the factory combines a domain separator with the entity's unique identifier (e.g. `merchant_id` or `escrow_id`) to generate a unique cryptographic salt:
+2. **Deterministic Salt Derivation**: The factory hashes the merchant ID, so each merchant has one predictable address:
    ```rust
-   let salt = env.crypto().sha256(&merchant_id.to_be_bytes());
+   let salt = env.crypto().keccak256(&Bytes::from_slice(env, &merchant_id.to_be_bytes()));
    ```
-3. **Deployer API**: The contract calls Soroban's `deployer().with_current_contract(salt).deploy(wasm_hash)` to instantiate the new contract instance.
+3. **Deployer API**: The contract calls Soroban's `deployer().with_current_contract(salt).deploy_v2(wasm_hash, ())` to instantiate the new contract instance.
 4. **Initialization & Address Storage**: The factory immediately invokes the child contract's `initialize` entrypoint and stores the resulting `Address` in persistent storage indexed by the entity's ID.
 
 ```
@@ -35,9 +35,7 @@ Shade uses deterministic on-chain contract factories to deploy isolated smart co
 
 | Factory Module | Target Crate | Deployment Trigger | Salt & ID Derivation | Primary Responsibility |
 | :--- | :--- | :--- | :--- | :--- |
-| **`account_factory`** *(Component)* | `account` | `deploy_merchant_account` | `sha256(merchant_id)` | Deploys isolated merchant balance vault with restricted withdrawals. |
-| **`escrow_factory`** *(Crate)* | `escrow` | `create_escrow` | `sha256(escrow_id + buyer + seller)` | Deploys conditional milestone escrow contracts. |
-| **`ticketing_factory`** *(Crate)* | `ticketing` | `create_event_ticketing` | `sha256(event_id + organizer)` | Deploys event-specific ticket issuance and check-in contracts. |
+| **`account_factory`** *(Component)* | `account` | `deploy_merchant_account` | `keccak256(merchant_id)` | Deploys isolated merchant balance vault with restricted withdrawals. |
 
 ---
 

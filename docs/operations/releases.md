@@ -34,7 +34,7 @@ Every breaking change is called out regardless of which number it bumps. Before 
 
 ### Contract versions
 
-Each contract crate keeps its own [SemVer](https://semver.org/) number in its `Cargo.toml`: `shade`, `account`, `escrow`, `escrow_factory`, `subscription`, `ticketing`, `ticketing_factory`, `crowdfund`, and `crowdfund_factory`. The rules:
+Each contract crate keeps its own [SemVer](https://semver.org/) number in its `Cargo.toml`: `shade` and `account`. The rules:
 
 - **Bump a crate only when its WASM changes.** A release can include `shade 0.3.0` and `account 0.1.0` unchanged.
 - **Bump the dependents too.** `shade` depends on `account` by path, so a change to the `account` crate's source changes the `shade` WASM and requires at least a patch bump of `shade`.
@@ -159,12 +159,11 @@ cd release-build
 git checkout v0.1.0
 
 RUSTFLAGS="--remap-path-prefix=$PWD=/build --remap-path-prefix=$HOME/.cargo=/cargo" \
-  cargo build --locked --target wasm32-unknown-unknown --release \
-    -p shade -p account -p escrow -p escrow_factory -p subscription \
-    -p ticketing -p ticketing_factory -p crowdfund -p crowdfund_factory
+  cargo build --locked --target wasm32v1-none --release \
+    -p shade -p account
 
-for c in shade account escrow escrow_factory subscription ticketing ticketing_factory crowdfund crowdfund_factory; do
-  stellar contract optimize --wasm "target/wasm32-unknown-unknown/release/$c.wasm"
+for c in shade account; do
+  stellar contract optimize --wasm "target/wasm32v1-none/release/$c.wasm"
 done
 ```
 
@@ -178,7 +177,7 @@ Why each part matters:
 Now prove reproducibility: a second person, or a CI job, builds the same tag on another machine using the same commands, and the two sets of hashes must match:
 
 ```bash
-sha256sum target/wasm32-unknown-unknown/release/*.optimized.wasm | sort -k2 > SHA256SUMS
+sha256sum target/wasm32v1-none/release/*.optimized.wasm | sort -k2 > SHA256SUMS
 cat SHA256SUMS
 ```
 
@@ -194,7 +193,7 @@ To confirm that a hash is what the network computes, install the WASM on testnet
 
 ```bash
 stellar contract install \
-  --wasm target/wasm32-unknown-unknown/release/shade.optimized.wasm \
+  --wasm target/wasm32v1-none/release/shade.optimized.wasm \
   --source-account default --network testnet
 # prints the WASM hash; it must equal the shade line in SHA256SUMS
 ```
@@ -220,13 +219,6 @@ Copy the changelog section for the version and add the build record. Use this te
 |---|---|---|
 | shade | 0.1.0 | `…` |
 | account | 0.1.0 | `…` |
-| escrow | 0.1.0 | `…` |
-| escrow_factory | 0.1.0 | `…` |
-| subscription | 0.1.0 | `…` |
-| ticketing | 0.1.0 | `…` |
-| ticketing_factory | 0.1.0 | `…` |
-| crowdfund | 0.1.0 | `…` |
-| crowdfund_factory | 0.1.0 | `…` |
 
 ### Build record
 
@@ -251,7 +243,7 @@ gh release create v0.1.0 \
   --title "Shade Protocol v0.1.0" \
   --notes-file RELEASE_NOTES.md \
   --verify-tag \
-  target/wasm32-unknown-unknown/release/*.optimized.wasm \
+  target/wasm32v1-none/release/*.optimized.wasm \
   SHA256SUMS
 ```
 

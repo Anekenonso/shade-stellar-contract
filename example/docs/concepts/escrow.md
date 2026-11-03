@@ -41,7 +41,7 @@ Use a subscription when:
 * the customer grants the contract the allowance required for recurring charges;
 * an off-chain operator is responsible for invoking the recurring charge operation.
 
-See [Subscriptions and recurring billing](./subscriptions.md) for the recurring-payment model.
+See [Subscriptions and recurring billing](subscriptions.md) for the recurring-payment model.
 
 ## How it works
 
@@ -210,21 +210,21 @@ If expiry is introduced later, the implementation should define:
 
 | Type / key                   | Defined in                                                           | Purpose                                                                                  |
 | ---------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `Escrow`                     | [`contracts/shade/src/types.rs`](../../contracts/shade/src/types.rs) | Stores the escrow participants, token, amount, status, invoice reference, and timestamps |
-| `EscrowStatus`               | [`contracts/shade/src/types.rs`](../../contracts/shade/src/types.rs) | Represents the current escrow lifecycle state                                            |
-| `DataKey::Escrow`            | [`contracts/shade/src/types.rs`](../../contracts/shade/src/types.rs) | Persistent storage key for an individual escrow                                          |
-| `DataKey::EscrowCount`       | [`contracts/shade/src/types.rs`](../../contracts/shade/src/types.rs) | Stores the escrow ID counter                                                             |
-| `DataKey::MerchantAnalytics` | [`contracts/shade/src/types.rs`](../../contracts/shade/src/types.rs) | Stores per-merchant/per-token payment analytics                                          |
+| `Escrow`                     | [`contracts/shade/src/types.rs`](../../../contracts/shade/src/types.rs) | Stores the escrow participants, token, amount, status, invoice reference, and timestamps |
+| `EscrowStatus`               | [`contracts/shade/src/types.rs`](../../../contracts/shade/src/types.rs) | Represents the current escrow lifecycle state                                            |
+| `DataKey::Escrow`            | [`contracts/shade/src/types.rs`](../../../contracts/shade/src/types.rs) | Persistent storage key for an individual escrow                                          |
+| `DataKey::EscrowCount`       | [`contracts/shade/src/types.rs`](../../../contracts/shade/src/types.rs) | Stores the escrow ID counter                                                             |
+| `DataKey::MerchantAnalytics` | [`contracts/shade/src/types.rs`](../../../contracts/shade/src/types.rs) | Stores per-merchant/per-token payment analytics                                          |
 
 ## Relevant functions
 
 | Function         | Defined in                                                                                   | Purpose                                                  |
 | ---------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `create_escrow`  | [`contracts/shade/src/components/escrow.rs`](../../contracts/shade/src/components/escrow.rs) | Creates a new escrow in `Created` state                  |
-| `get_escrow`     | [`contracts/shade/src/components/escrow.rs`](../../contracts/shade/src/components/escrow.rs) | Loads an escrow by ID                                    |
-| `fund_escrow`    | [`contracts/shade/src/components/escrow.rs`](../../contracts/shade/src/components/escrow.rs) | Transfers buyer funds into the escrow                    |
-| `release_escrow` | [`contracts/shade/src/components/escrow.rs`](../../contracts/shade/src/components/escrow.rs) | Settles the escrow to the merchant after fee calculation |
-| `refund_escrow`  | [`contracts/shade/src/components/escrow.rs`](../../contracts/shade/src/components/escrow.rs) | Returns funded escrow funds to the buyer                 |
+| `create_escrow`  | [`contracts/shade/src/components/escrow.rs`](../../escrow/src/from_shade/escrow.rs) | Creates a new escrow in `Created` state                  |
+| `get_escrow`     | [`contracts/shade/src/components/escrow.rs`](../../escrow/src/from_shade/escrow.rs) | Loads an escrow by ID                                    |
+| `fund_escrow`    | [`contracts/shade/src/components/escrow.rs`](../../escrow/src/from_shade/escrow.rs) | Transfers buyer funds into the escrow                    |
+| `release_escrow` | [`contracts/shade/src/components/escrow.rs`](../../escrow/src/from_shade/escrow.rs) | Settles the escrow to the merchant after fee calculation |
+| `refund_escrow`  | [`contracts/shade/src/components/escrow.rs`](../../escrow/src/from_shade/escrow.rs) | Returns funded escrow funds to the buyer                 |
 
 ## Constraints and edge cases
 
@@ -244,6 +244,6 @@ If expiry is introduced later, the implementation should define:
 ## Related pages
 
 * [Escrow contract reference](../contracts/escrow.md)
-* [Subscriptions and recurring billing](./subscriptions.md)
-* [Token whitelisting](./token-whitelisting.md)
-* [Invoices and invoice payments](../contracts/README.md)
+* [Subscriptions and recurring billing](subscriptions.md)
+* [Token whitelisting](../../../docs/concepts/token-whitelisting.md)
+* [Invoices and invoice payments](../../../docs/contracts/README.md)

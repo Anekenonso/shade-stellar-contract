@@ -13,11 +13,8 @@ Every payment that goes through the platform fee router calls `record_merchant_p
 ```mermaid
 flowchart LR
     A[pay_invoice / pay_invoice_partial / pay_invoices_batch] --> R[platform_fee::route_from_payer]
-    B[purchase_ticket] --> R
-    C[charge_subscription] --> S[platform_fee::route_from_allowance]
     R --> F[finalize_route]
     S --> F
-    D[release_escrow] --> M[record_merchant_payment]
     F --> M
     M --> T[record_token_payment]
     T --> V[TokenAnalytics + TokenVolume]
@@ -32,26 +29,17 @@ Volume is **gross** and **increment-only**. Each recorded payment adds the full 
 | `pay_invoice` (full payment) | Yes | Pays the remaining balance through `pay_invoice_partial_inner`. |
 | `pay_invoice_partial` | Yes | Each partial payment is one recorded payment, with its own `transaction_count` increment. |
 | `pay_invoices_batch` | Yes | One recorded payment per invoice in the batch. |
-| `purchase_ticket` | Yes | Hub event ticketing, at the current dynamic price. |
-| `charge_subscription` | Yes | Hub subscription charge, at `plan.amount`. |
-| `release_escrow` | Yes | Counts the escrow `amount`; the fee is `calculate_fee` on that amount. |
-| `purchase_tickets_bulk` | **No** | Transfers the discounted total directly; skips the fee router. |
-| `resell_ticket`, `buy_ticket_from_listing` | **No** | Secondary-market royalty split; skips the fee router. |
-| `refund_invoice`, `refund_invoice_partial`, `refund_escrow` | **No decrement** | Refunds never reduce any counter. |
-| `cancel_event_and_batch_refund` | **No decrement** | Ticket refunds never reduce any counter. |
-| Standalone `subscription` and `ticketing` contracts | No | They are separate contracts and do not write hub storage. |
+| `refund_invoice`, `refund_invoice_partial` | **No decrement** | Refunds never reduce any counter. |
 
 > **Note:** Because refunds do not decrement, `total_volume` is gross processed volume, not net revenue. Compute net figures off-chain from refund events.
-
-> **Warning:** [Merchant analytics and transaction history](./analytics-and-history.md) states that ticket purchases are not counted. `purchase_ticket` does route through `route_from_payer` with `PlatformFeeRouteKind::TicketPurchase`, so it is counted. Bulk purchases and resales are the ticket flows that are not.
 
 ## Relevant types and storage
 
 | Type / key | Defined in | Purpose |
 |---|---|---|
-| `TokenAnalytics` | [`contracts/shade/src/types.rs#L534-L543`](../../contracts/shade/src/types.rs#L534-L543) | Per-token aggregate returned by `get_token_analytics`. |
-| `DataKey::TokenAnalytics(Address)` | [`contracts/shade/src/types.rs#L76`](../../contracts/shade/src/types.rs#L76) | Persistent storage for the aggregate. |
-| `DataKey::TokenVolume(Address)` | [`contracts/shade/src/types.rs#L77`](../../contracts/shade/src/types.rs#L77) | Copy of `total_volume`, read by the volume and share queries. |
+| `TokenAnalytics` | [`contracts/shade/src/types.rs#L534-L543`](../../contracts/shade/src/types.rs) | Per-token aggregate returned by `get_token_analytics`. |
+| `DataKey::TokenAnalytics(Address)` | [`contracts/shade/src/types.rs#L76`](../../contracts/shade/src/types.rs) | Persistent storage for the aggregate. |
+| `DataKey::TokenVolume(Address)` | [`contracts/shade/src/types.rs#L77`](../../contracts/shade/src/types.rs) | Copy of `total_volume`, read by the volume and share queries. |
 
 ### TokenAnalytics fields
 
@@ -70,7 +58,7 @@ For a token with no payments, `get_token_analytics` returns all-zero fields with
 
 ## Relevant functions
 
-All five are read-only, require no authorization, and are declared in [`contracts/shade/src/interface.rs#L322-L335`](../../contracts/shade/src/interface.rs#L322-L335). Implementations are in [`contracts/shade/src/components/admin.rs#L280-L389`](../../contracts/shade/src/components/admin.rs#L280-L389).
+All five are read-only, require no authorization, and are declared in [`contracts/shade/src/interface.rs#L322-L335`](../../contracts/shade/src/interface.rs). Implementations are in [`contracts/shade/src/components/analytics.rs#L280-L389`](../../contracts/shade/src/components/analytics.rs).
 
 | Function | Signature | Returns |
 |---|---|---|
@@ -121,7 +109,7 @@ The whitelist is unbounded in code, so there is no contract-side cap on `n`. Sor
 1. `get_top_tokens_by_volume(10)` returns the leaderboard `(token, volume)` pairs. One call, sorted.
 2. For each token on screen, `get_token_analytics(token)` returns fees, `transaction_count`, and `last_updated`.
 3. Compute share client-side: `share_bps = volume * 10_000 / sum(volumes)`, with integer division to match the contract. Call `get_token_market_share(token)` only to spot-check a single token.
-4. Format volumes using each token's decimals; see [Amounts, token decimals, and rounding](./amounts-and-rounding.md).
+4. Format volumes using each token's decimals; see [Amounts, token decimals, and rounding](amounts-and-rounding.md).
 
 ## What to compute off-chain
 
@@ -131,15 +119,14 @@ The whitelist is unbounded in code, so there is no contract-side cap on `n`. Sor
 | Distinct merchants per token | `unique_merchants` does not count distinct merchants. |
 | Time-windowed volume (daily, weekly) | Only lifetime totals are stored. |
 | Cross-token share in a common currency | The contract mixes raw base units. |
-| Volume from bulk ticket sales and resales | These flows are not recorded. |
 | Rankings over a large whitelist | The on-chain sort is O(n²) and unpaginated. |
 
 See [Indexing events](../guides/indexing-events.md) for the event stream to build these from.
 
 ## Related pages
 
-- [Merchant analytics and transaction history](./analytics-and-history.md)
-- [Fees, volume discounts, and time-locked fee changes](./fees.md)
-- [Payment flows: full, partial, and batch](./payments.md)
-- [Token whitelisting](./token-whitelisting.md)
-- [Amounts, token decimals, and rounding](./amounts-and-rounding.md)
+- [Merchant analytics and transaction history](analytics-and-history.md)
+- [Fees, volume discounts, and time-locked fee changes](fees.md)
+- [Payment flows: full, partial, and batch](payments.md)
+- [Token whitelisting](token-whitelisting.md)
+- [Amounts, token decimals, and rounding](amounts-and-rounding.md)

@@ -21,7 +21,7 @@ A batch is "safe" only if it is within **every** limit.
 
 ## How the numbers were measured
 
-Measurements come from the Soroban test environment: `env.cost_estimate().resources()` after a single top-level invocation, with the budget reset to unlimited so that over-limit batches can still be measured. The test is [`contracts/subscription/src/test_resource_costs.rs`](../../contracts/subscription/src/test_resource_costs.rs).
+Measurements come from the Soroban test environment: `env.cost_estimate().resources()` after a single top-level invocation, with the budget reset to unlimited so that over-limit batches can still be measured. The test is [`contracts/subscription/src/test_resource_costs.rs`](../../subscription/src/test_resource_costs.rs).
 
 > **Warning:** The test environment runs the contract as native Rust, not compiled WASM, and uses the built-in token contract. Instruction and memory counts for a deployed WASM contract are higher, so treat these numbers as a lower bound for CPU and memory. Entry counts, written bytes and event bytes do not depend on native vs WASM execution and are directly comparable. Always confirm a chosen batch size with a testnet simulation.
 
@@ -89,4 +89,4 @@ Among the measured set, `process_billing_cycle` is the only operation measured, 
 ## Related pages
 
 - [Subscriptions and recurring billing](../concepts/subscriptions.md)
-- [Payment flows: full, partial, and batch](../concepts/payments.md)
+- [Payment flows: full, partial, and batch](../../../docs/concepts/payments.md)

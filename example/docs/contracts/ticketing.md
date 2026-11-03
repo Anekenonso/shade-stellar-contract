@@ -4,9 +4,9 @@ The `ticketing` crate (`contracts/ticketing/`) and its `ticketing_factory` (`con
 
 ## Contract interface
 
-`contracts/ticketing/` has no separate `interface.rs`; its public surface is the `#[contractimpl] impl TicketingContract` block in [`contracts/ticketing/src/lib.rs`](../../contracts/ticketing/src/lib.rs). `contracts/ticketing_factory/` is similarly defined in [`contracts/ticketing_factory/src/lib.rs`](../../contracts/ticketing_factory/src/lib.rs).
+`contracts/ticketing/` has no separate `interface.rs`; its public surface is the `#[contractimpl] impl TicketingContract` block in [`contracts/ticketing/src/lib.rs`](../../ticketing/src/lib.rs). `contracts/ticketing_factory/` is similarly defined in [`contracts/ticketing_factory/src/lib.rs`](../../ticketing_factory/src/lib.rs).
 
-`lib.rs` declares `mod test_integration;`, `mod test_resale;`, and `mod test_tiers;` under `#[cfg(test)]`, and all three build and run. `contracts/ticketing/src/test.rs` (632 lines) exists on disk but is **not** referenced by any `mod` declaration — like the orphaned tests in [`contracts/escrow`](./escrow.md), it is dead code, not compiled as part of the crate, and its assertions are not cited here as verified behavior. `contracts/ticketing_factory/src/test.rs` **is** wired in via `mod test;` and does compile.
+`lib.rs` declares `mod test_integration;`, `mod test_resale;`, and `mod test_tiers;` under `#[cfg(test)]`, and all three build and run. `contracts/ticketing/src/test.rs` (632 lines) exists on disk but is **not** referenced by any `mod` declaration — like the orphaned tests in [`contracts/escrow`](escrow.md), it is dead code, not compiled as part of the crate, and its assertions are not cited here as verified behavior. `contracts/ticketing_factory/src/test.rs` **is** wired in via `mod test;` and does compile.
 
 ## Ticket lifecycle and ownership
 
@@ -395,5 +395,5 @@ For an integrator building against Shade: use the **hub's own ticketing function
 ## Related pages
 
 - [Event ticketing, dynamic pricing, and resale](../concepts/event-ticketing.md) — the Shade hub's own ticketing feature, documented in full.
-- [Escrow contract reference](./escrow.md) — the sibling standalone-crate-vs-hub pattern, including the same random-salt factory idiom.
-- [Protocol Glossary](../glossary.md) — `event`, `ticket` terms (the hub's own domain "Event" type, distinct from Soroban's platform-level "event" mechanism).
+- [Escrow contract reference](escrow.md) — the sibling standalone-crate-vs-hub pattern, including the same random-salt factory idiom.
+- [Protocol Glossary](../../../docs/glossary.md) — `event`, `ticket` terms (the hub's own domain "Event" type, distinct from Soroban's platform-level "event" mechanism).

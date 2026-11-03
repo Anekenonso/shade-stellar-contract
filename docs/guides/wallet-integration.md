@@ -25,9 +25,8 @@ Read this section before writing any code. Shade's entry points call `require_au
 | You call | Address that must authorize | Where it comes from |
 |---|---|---|
 | `pay_invoice(payer, invoice_id)`, `pay_invoice_partial`, `pay_invoices_batch` | `payer` | [`invoice.rs`](../../contracts/shade/src/components/invoice.rs) calls `payer.require_auth()` |
-| `register_merchant(merchant)`, `create_invoice(merchant, …)`, `set_merchant_account`, `refund_invoice` | `merchant` | The merchant is the argument that is authorized |
+| `register_merchant(merchant)`, `create_invoice(merchant, …)`, `deploy_merchant_account`, `refund_invoice` | `merchant` | The merchant is the argument that is authorized |
 | `claim_refund(buyer, invoice_id)` | `buyer` | The refund claimant authorizes |
-| `subscribe(customer, plan_id)` | `customer` | The subscriber authorizes the subscription |
 | `set_fee(admin, …)`, `add_accepted_token(admin, …)`, `pause(admin)` | `admin` | `core::assert_admin` requires the stored admin's auth |
 | `upgrade(new_wasm_hash)` | the stored admin | `upgrade` takes no admin argument — it reads the admin and requires that address |
 | `withdraw_to(token, amount, recipient)` on an `account` contract | that account's merchant | `account.rs` calls `merchant.require_auth()` |
@@ -195,7 +194,7 @@ A classic Stellar asset (USDC, for example) is exposed to Soroban through its St
 | Address | Needs a trustline when… |
 |---|---|
 | The payer | always — they hold the tokens being sent |
-| The merchant's settlement account | the account is a `G…` address. `register_merchant` sets it to the merchant's own wallet address by default, so the **merchant's wallet** needs the trustline unless an `account` contract was linked with `set_merchant_account` |
+| The merchant's settlement account | the account contract holds the funds, so it must be able to hold the token.|
 | The platform account | the platform account is a `G…` address (it is the admin's address unless `set_platform_account` changed it) |
 
 Contract addresses (`C…`) — including an `account` contract — hold SAC balances in contract storage and need no trustline. Native XLM needs no trustline either.
@@ -554,7 +553,7 @@ The native token's contract ID comes from `stellar contract id asset --asset nat
 | "Your wallet is on PUBLIC. Switch it to TESTNET" | The wallet's network differs from `NETWORK.passphrase`. | Switch the network in the wallet. Do not change the app's passphrase to match. |
 | `Error(Auth, InvalidAction)` on submit | The `payer` argument is not the address that signed, or the signed transaction was altered after simulation. | Use the connected address for both `publicKey` and the `payer` argument; do not modify the XDR between simulate and sign. |
 | Wallet shows two token transfers for one payment | The invoice amount is split into the merchant's share and the protocol fee. | Expected — see [Fees](../concepts/fees.md). |
-| Preflight reports a missing trustline for the merchant | The merchant's settlement account is a `G…` address without a trustline to the asset. | The merchant adds the trustline, or links an `account` contract with `set_merchant_account`. |
+| Preflight reports a missing trustline for the merchant | The merchant's settlement account is a `G…` address without a trustline to the asset. | The merchant adds the trustline, or links an `account` contract with `deploy_merchant_account`. |
 | Simulation fails with `Error(Contract, #12)` or `#41` | The token is not whitelisted globally (12) or by this merchant (41). | The admin calls `add_accepted_token`; the merchant calls `set_merchant_accepted_tokens`. |
 | Simulation passes but the transaction fails | State changed between simulation and inclusion. | Re-run the flow; see [Troubleshooting](../getting-started/troubleshooting.md#10-simulation-succeeds-but-submission-fails). |
 

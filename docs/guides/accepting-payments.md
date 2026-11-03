@@ -269,7 +269,7 @@ Confirm `status` is `Paid` (or `PartiallyPaid` with the expected `amount_paid`) 
 - [The component pattern](../architecture/component-pattern.md) — how `pay_invoice` is wired from `shade_interface.rs` through to the `invoice` component.
 - [Architecture overview](../architecture/overview.md) — the full `pay_invoice` request lifecycle and guard order.
 - [Fiat pricing and oracles](../concepts/fiat-pricing-and-oracles.md)
-- [Payment payloads, swap routing, and the cross-chain bridge placeholder](../concepts/payment-payloads-and-routing.md)
+- [Payment payloads and swap routing](../concepts/payment-payloads-and-routing.md)
 - [Access control](../security/access-control.md), [Signatures](../security/signatures.md)
 - [`ShadeTrait` function reference](../reference/shade-interface.md)
 
