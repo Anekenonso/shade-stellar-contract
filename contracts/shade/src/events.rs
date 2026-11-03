@@ -817,6 +817,30 @@ pub fn publish_auto_withdrawal_triggered_event(
 }
 
 #[contractevent]
+pub struct AutoWithdrawalFailedEvent {
+    pub merchant_id: u64,
+    pub token: Address,
+    pub amount: i128,
+    pub recipient: Address,
+}
+
+pub fn publish_auto_withdrawal_failed_event(
+    env: &Env,
+    merchant_id: u64,
+    token: Address,
+    amount: i128,
+    recipient: Address,
+) {
+    AutoWithdrawalFailedEvent {
+        merchant_id,
+        token,
+        amount,
+        recipient,
+    }
+    .publish(env);
+}
+
+#[contractevent]
 pub struct AdminTransferProposedEvent {
     pub current_admin: Address,
     pub proposed_admin: Address,

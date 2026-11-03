@@ -2,7 +2,12 @@ use crate::components::merchant;
 use crate::errors::ContractError;
 use crate::events;
 use crate::types::AutoWithdrawalThreshold;
-use soroban_sdk::{panic_with_error, token, Address, Env, Vec};
+use soroban_sdk::{contractclient, panic_with_error, token, Address, Env, Vec};
+
+#[contractclient(name = "MerchantAccountSweepClient")]
+pub trait MerchantAccountSweep {
+    fn sweep_to(env: Env, token: Address, amount: i128, recipient: Address);
+}
 
 /// Set auto-withdrawal threshold for a merchant and token
 pub fn set_auto_withdrawal_threshold(
@@ -112,7 +117,6 @@ pub fn check_and_trigger_auto_withdrawal(env: &Env, merchant_id: u64, token: &Ad
     let recipient =
         get_auto_withdrawal_recipient(env, merchant_id).unwrap_or_else(|| merchant.address.clone());
 
-    // Trigger withdrawal
     trigger_auto_withdrawal(
         env,
         merchant_id,
@@ -120,12 +124,12 @@ pub fn check_and_trigger_auto_withdrawal(env: &Env, merchant_id: u64, token: &Ad
         &merchant_account,
         &recipient,
         balance,
-    );
-
-    true
+    )
 }
 
-/// Internal function to trigger the actual withdrawal
+/// Sweep the merchant account's balance to the recipient. A failed sweep must not
+/// cost the payer their payment, so it is caught here and reported as an event;
+/// the funds stay in the account for a later sweep or a manual withdrawal.
 fn trigger_auto_withdrawal(
     env: &Env,
     merchant_id: u64,
@@ -133,23 +137,27 @@ fn trigger_auto_withdrawal(
     merchant_account: &Address,
     recipient: &Address,
     amount: i128,
-) {
-    use soroban_sdk::contractclient;
+) -> bool {
+    let client = MerchantAccountSweepClient::new(env, merchant_account);
+    let swept = matches!(client.try_sweep_to(token, &amount, recipient), Ok(Ok(())));
 
-    #[allow(dead_code)]
-    #[contractclient(name = "MerchantAccountAutoWithdrawalClient")]
-    pub trait MerchantAccountAutoWithdrawal {
-        fn withdraw_to(env: Env, token: Address, amount: i128, to: Address);
+    if swept {
+        events::publish_auto_withdrawal_triggered_event(
+            env,
+            merchant_id,
+            token.clone(),
+            amount,
+            recipient.clone(),
+        );
+    } else {
+        events::publish_auto_withdrawal_failed_event(
+            env,
+            merchant_id,
+            token.clone(),
+            amount,
+            recipient.clone(),
+        );
     }
 
-    let client = MerchantAccountAutoWithdrawalClient::new(env, merchant_account);
-    client.withdraw_to(&token.clone(), &amount, &recipient.clone());
-
-    events::publish_auto_withdrawal_triggered_event(
-        env,
-        merchant_id,
-        token.clone(),
-        amount,
-        recipient.clone(),
-    );
+    swept
 }

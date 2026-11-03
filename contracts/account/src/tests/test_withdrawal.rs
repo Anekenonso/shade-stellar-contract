@@ -308,3 +308,57 @@ fn test_withdraw_to_tracks_analytics() {
     assert_eq!(analytics.withdrawal_count, 2);
     assert_eq!(analytics.last_withdrawn_at, 1_000_000);
 }
+
+fn funded_account_with_manager(
+    env: &Env,
+) -> (Address, MerchantAccountClient<'_>, Address, Address) {
+    let contract_id = env.register(MerchantAccount, ());
+    let client = MerchantAccountClient::new(env, &contract_id);
+    let merchant = Address::generate(env);
+    let manager = Address::generate(env);
+    client.initialize(&merchant, &manager, &1u64);
+    let token = create_test_token(env);
+    token::StellarAssetClient::new(env, &token).mint(&contract_id, &5000);
+    (contract_id, client, manager, token)
+}
+
+#[test]
+fn test_sweep_to_requires_only_the_manager() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (contract_id, client, manager, token) = funded_account_with_manager(&env);
+    let recipient = Address::generate(&env);
+
+    client.sweep_to(&token, &5000, &recipient);
+
+    let auths = env.auths();
+    assert_eq!(auths.len(), 1);
+    assert_eq!(auths.get(0).unwrap().0, manager);
+    let token_client = token::Client::new(&env, &token);
+    assert_eq!(token_client.balance(&recipient), 5000);
+    assert_eq!(token_client.balance(&contract_id), 0);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
+fn test_sweep_to_rejects_callers_without_manager_auth() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_contract_id, client, _manager, token) = funded_account_with_manager(&env);
+    let recipient = Address::generate(&env);
+
+    env.mock_auths(&[]);
+    client.sweep_to(&token, &5000, &recipient);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #5)")]
+fn test_sweep_to_is_blocked_when_restricted() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_contract_id, client, _manager, token) = funded_account_with_manager(&env);
+    let recipient = Address::generate(&env);
+
+    client.restrict_account(&true);
+    client.sweep_to(&token, &5000, &recipient);
+}

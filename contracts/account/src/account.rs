@@ -219,6 +219,20 @@ impl MerchantAccountTrait for MerchantAccount {
         Self::execute_withdrawal(&env, &token, amount, &recipient);
     }
 
+    /// Manager-authorized sweep to the recipient the merchant configured on the
+    /// hub. It runs inside a payer's transaction, so it cannot need the merchant's
+    /// signature and is not subject to the withdrawal threshold.
+    fn sweep_to(env: Env, token: Address, amount: i128, recipient: Address) {
+        let manager = get_manager(&env);
+        manager.require_auth();
+
+        if is_restricted_account(&env) {
+            panic_with_error!(&env, ContractError::AccountRestricted);
+        }
+
+        Self::execute_withdrawal_internal(&env, &token, amount, &recipient);
+    }
+
     fn set_withdrawal_threshold(env: Env, threshold: i128) {
         let manager = get_manager(&env);
         manager.require_auth();
