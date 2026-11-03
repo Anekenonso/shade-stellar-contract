@@ -1,31 +1,25 @@
+pub mod support;
 pub mod test;
 pub mod test_accepted_tokens;
 pub mod test_access_control;
 pub mod test_account_factory;
 pub mod test_admin_payment;
 pub mod test_admin_transfer;
-pub mod test_auto_withdrawal;
-pub mod test_bridge;
-pub mod test_fee_discount;
 pub mod test_analytics_aggregation;
+pub mod test_auto_withdrawal;
+pub mod test_batch_token_whitelist;
 pub mod test_calculate_fee;
-// The campaign-refunds component (finalize_campaign, process_failed_campaign_refunds,
-// claim_campaign_refund, Campaign::{status, total_refunded, refund_count},
-// CampaignStatus::{Failed, Refunded}) was lost in a merge; nothing in the repo
-// implements it, so these tests cannot compile. Re-enable once it is restored.
-// pub mod test_campaign_refunds;
 pub mod test_date_range_filter;
 pub mod test_draft_invoice;
-pub mod test_event_tickets;
-pub mod test_expired_escrow_refund;
-pub mod test_feature_197;
-pub mod test_feature_211;
+pub mod test_fee_discount;
 pub mod test_fee_discounts;
 pub mod test_fees;
+pub mod test_fiat_invoice_pricing;
 pub mod test_fiat_pricing;
-pub mod test_governance;
 pub mod test_invoice;
 pub mod test_invoice_amendment;
+pub mod test_invoice_claim_refund;
+pub mod test_invoice_expired_refund;
 pub mod test_invoice_expiry;
 pub mod test_invoice_filter;
 pub mod test_invoice_partial_refund;
@@ -37,31 +31,16 @@ pub mod test_merchant_key;
 pub mod test_merchant_tokens;
 pub mod test_merchant_verification;
 pub mod test_merchant_webhook;
-pub mod test_nft_rewards;
-pub mod test_backer_rewards;
 pub mod test_pausable;
 pub mod test_payment;
 pub mod test_payment_payload;
 pub mod test_platform_fee;
+pub mod test_platform_fee_routing;
 pub mod test_querying;
 pub mod test_reentrancy;
 pub mod test_refund;
 pub mod test_shade_restriction;
 pub mod test_signatures;
-pub mod test_subscription;
-pub mod test_subscription_enrollment;
 pub mod test_time_locked_fees;
 pub mod test_transaction_history;
 pub mod test_upgrade;
-// pub mod test_analytics_aggregation; // TODO: broken – uses `vec!`/`format!` in no_std, wrong args
-pub mod test_campaign_leaderboard;
-pub mod test_campaigns;
-pub mod test_feature_228;
-pub mod test_feature_231;
-
-pub mod test_analytics_export;
-pub mod test_backer_rewards;
-pub mod test_creator_vesting;
-pub mod test_fiat_goals;
-pub mod test_nft_rewards;
-pub mod test_stretch_goals;

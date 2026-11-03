@@ -4,19 +4,18 @@ Replace the deployed `shade` contract's WASM with a new build while preserving i
 
 > **Warning:** An upgrade that lands a storage-incompatible change is not something you can undo by reinstalling the old WASM. If the new code has already written data in a shape the old code cannot decode, "rolling back" the executable does not roll back the data — see [Rollback](#rollback).
 
-> **Note:** Only `shade` has an `upgrade` entry point. `account`, `escrow`, `ticketing`, `subscription`, `crowdfund`, and the three standalone factories are immutable once deployed — there is nothing to "upgrade" on any of them (see [Upgradeability § What is upgradeable](../architecture/upgradeability.md#what-is-upgradeable-and-what-is-not)). If your incident or change involves one of those contracts, the remedy is deploying a new instance and migrating merchants to it, not this runbook.
+> **Note:** Only `shade` has an `upgrade` entry point.
 
 ## When to use this
 
 - A reviewed, tested fix or feature for `shade` is ready to ship to a live deployment.
 - An incident response has identified that the fix requires new contract code, not just a configuration change (configuration changes go through the [Admin Runbook](admin-runbook.md) instead).
-- A DAO governance proposal to upgrade has passed and needs to be finalized.
 
 Do **not** reach for this runbook for: fee changes, token whitelist changes, role grants, merchant status changes, or oracle reconfiguration — all of those are `set_*`/`grant_role` calls documented in the [Admin Runbook](admin-runbook.md) and do not touch the WASM at all.
 
 ## Preconditions
 
-- You hold the current `shade` admin key (for the direct admin path), or you are a governance council member and a `propose_upgrade`/`vote_on_upgrade` cycle has already run (for the governance path) — see [both paths](../architecture/upgradeability.md#the-upgrade-mechanism).
+- You hold the current `shade` admin key — see [the upgrade mechanism](../architecture/upgradeability.md#the-upgrade-mechanism).
 - `cargo build -p shade --release` succeeds against the commit you intend to ship. **Check this explicitly and do not assume it** — `main` has been broken at points during this repository's history (see [Deployment Runbook § Known-broken baseline](deployment.md#known-broken-baseline-verify-before-you-start)); an upgrade is not the moment to discover the crate doesn't compile.
 - `cargo test -p shade` passes in full.
 
@@ -35,8 +34,8 @@ Do **not** reach for this runbook for: fee changes, token whitelist changes, rol
 
 This is the step most likely to be skipped under time pressure and the one most likely to make an upgrade unrecoverable. Diff `contracts/shade/src/types.rs` between the currently-deployed commit and the new commit, and for every changed `#[contracttype]` item, check it against [Upgradeability's storage compatibility rules](../architecture/upgradeability.md#storage-compatibility-rules):
 
-- [ ] No key-enum variant (`DataKey`, `EventKey`, `CampaignKey`, etc.) was renamed, retyped, or moved to a different enum.
-- [ ] No `#[repr(u32)]` integer enum variant (`InvoiceStatus`, `EscrowStatus`, `Role`, etc.) was renumbered. New variants, if any, took new, higher numbers.
+- [ ] No key-enum variant in `DataKey` was renamed, retyped, or moved to a different enum.
+- [ ] No `#[repr(u32)]` integer enum variant (`InvoiceStatus`, `Role`, etc.) was renumbered. New variants, if any, took new, higher numbers.
 - [ ] No field was added to, removed from, or renamed on a struct that is already persisted on the live network you're upgrading — or a migration ships in the same WASM (see [Migration patterns](../architecture/upgradeability.md#migration-patterns)).
 - [ ] If the `account` contract's code changed in this release: understand that upgrading `shade` does **not** upgrade any already-deployed `account` instance — `account` has no upgrade entry point at all, and even if it did, `shade` does not currently deploy accounts through its dead `account_factory` component (see [Deployment Runbook](deployment.md#what-actually-gets-deployed)). A merchant `account` fix requires a separate migration plan (new `account` deployment + `set_merchant_account`), independent of this runbook.
 
@@ -48,9 +47,9 @@ This is the step most likely to be skipped under time pressure and the one most 
 
 ### Testnet rehearsal
 
-- [ ] The upgrade has been executed against a testnet deployment of `shade` carrying representative state (registered merchants, invoices in more than one status, at least one subscription, at least one fee/token/oracle configuration) before this runbook is followed against mainnet.
+- [ ] The upgrade has been executed against a testnet deployment of `shade` carrying representative state (registered merchants, invoices in more than one status, at least one fee/token/oracle configuration) before this runbook is followed against mainnet.
 - [ ] After the rehearsal upgrade, the following were confirmed readable and correct: an existing invoice, an existing merchant, fee configuration for at least one token, accepted-tokens list, oracle configuration (if used), role assignments, and analytics/counters (`get_merchant_volume`, `get_token_analytics`).
-- [ ] A representative write (e.g. paying a pre-existing invoice, charging a pre-existing subscription) succeeded against the rehearsal contract after the upgrade.
+- [ ] A representative write (e.g. paying a pre-existing invoice) succeeded against the rehearsal contract after the upgrade.
 
 > **Note:** This repository has no infrastructure for snapshotting or cloning production state onto testnet. If your team needs a rehearsal against a faithful copy of live state rather than freshly-seeded testnet data, that tooling does not exist yet — flag this as a gap for the team rather than skipping the rehearsal step entirely. `contracts/shade/src/tests/test_upgrade.rs::test_state_persists_after_upgrade` is the closest existing automated coverage; it upgrades a test contract instance and asserts `DataKey::Admin` and `DataKey::AcceptedTokens` survive, but it is a unit test with synthetic state, not a rehearsal against realistic data volume.
 
@@ -95,29 +94,13 @@ Write it into your [deployment artifact record](deployment.md#artifact-recording
 
 ### 6. Call `upgrade`
 
-Direct admin path (bypasses DAO governance — see the warning below):
-
 ```bash
 stellar contract invoke --id <shade-id> --network <network> --source-account admin -- upgrade --new_wasm_hash <hash-from-step-4>
 ```
 
 Required signer: the current admin (`upgrade` reads the admin from storage and requires that exact address's authorization — there is no separate `admin` parameter to the call).
 
-> **Warning:** `upgrade` bypasses `propose_upgrade`/`vote_on_upgrade`/`finalize_upgrade` entirely and is not pausable-gated (see [Upgradeability § The admin path](../architecture/upgradeability.md#the-admin-path)) — this is intentional, so an operator can ship an emergency fix while paused, but it also means calling it directly does not close any DAO proposal that might be open. If your team requires the governance path for routine upgrades, use `propose_upgrade` → (voting period) → `finalize_upgrade` instead, and reserve the direct call for incidents. Record which path was used and why in your artifact log either way.
-
-Governance path, once a proposal has passed and its voting window has closed:
-
-```bash
-stellar contract invoke --id <shade-id> --network <network> --source-account caller -- finalize_upgrade --caller <any-address> --proposal_id <id>
-```
-
-`finalize_upgrade` can be called by any address once the voting window has closed; it applies the upgrade automatically if quorum and majority were met, or marks the proposal `Defeated` otherwise. Skip step 4/5 above in this path only if the proposal's associated WASM was already installed when it was proposed — `propose_upgrade` takes a `wasm_hash`, not a WASM file, so the hash must already be installed on the network before `propose_upgrade` is called.
-
-### 7. Verify the upgraded build
-
-```bash
-stellar contract invoke --id <shade-id> --network <network> -- get_admin
-```
+> **Warning:** `upgrade` takes effect immediately and is not pausable-gated.
 
 A successful response confirms the new WASM is live and can read existing storage — `get_admin` reading `DataKey::Admin` correctly is a minimal but real signal that the new code and the old storage are compatible for at least this one key. This does not by itself prove full storage compatibility — continue to the fuller checks in [Verification](#verification).
 
@@ -192,7 +175,7 @@ Concretely, "rollback is impossible" in this codebase means one of:
 
 ## Communication plan
 
-- **Before pausing:** announce the maintenance window to merchants/integrators — expected start time, expected pause duration, and what will be unavailable (invoice creation, payments, subscription charges, and every other `assert_not_paused`-gated function — see [Pausable § Blocked vs allowed](../security/pausable.md#blocked-vs-allowed-while-paused); reads remain available throughout).
+- **Before pausing:** announce the maintenance window to merchants/integrators — expected start time, expected pause duration, and what will be unavailable (invoice creation, payments, and every other `assert_not_paused`-gated function — see [Pausable § Blocked vs allowed](../security/pausable.md#blocked-vs-allowed-while-paused); reads remain available throughout).
 - **At pause:** send the "upgrade window has started" notification.
 - **At completion (success):** send the "upgrade complete, unpaused, service restored" notification, including any breaking interface changes integrators need to handle.
 - **At completion (rollback or failure):** send a distinct "upgrade did not complete as planned, contract remains paused / has been rolled back" notification — do not reuse the success template with words changed, since integrators watching for the "safe to resume" signal need this to be unambiguous.
@@ -204,7 +187,7 @@ Before step 1 (announcing the window), the following roles confirm readiness:
 
 - [ ] **Protocol engineer** — confirms the build, tests, and storage-compatibility review are complete and accurate.
 - [ ] **Security reviewer** — confirms the interface diff and storage-compatibility analysis were independently checked, not only self-reviewed by the author.
-- [ ] **Release operator** — confirms they will execute this runbook, have access to the admin key (or governance member access for the governance path), and have the rollback plan and previous WASM hash on hand before starting.
+- [ ] **Release operator** — confirms they will execute this runbook, have access to the admin key, and have the rollback plan and previous WASM hash on hand before starting.
 - [ ] **Product/operations owner** — confirms the maintenance window and merchant communication plan are approved.
 - [ ] **Incident/on-call owner** — confirms they are reachable during the window in case verification fails.
 

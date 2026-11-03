@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::shade::{Shade, ShadeClient};
+use crate::tests::support::LinkMerchantAccount as _;
 use crate::types::InvoiceStatus;
 use account::account::{MerchantAccount, MerchantAccountClient};
 use soroban_sdk::testutils::{Address as _, Ledger as _};
@@ -50,7 +51,7 @@ fn setup_paid_invoice(pay_timestamp: u64) -> RefundTestContext<'static> {
     let merchant_account_id = env.register(MerchantAccount, ());
     let merchant_account = MerchantAccountClient::new(&env, &merchant_account_id);
     merchant_account.initialize(&merchant, &shade_id, &1_u64);
-    client.set_merchant_account(&merchant, &merchant_account_id);
+    client.link_merchant_account(&merchant, &merchant_account_id);
 
     // Create invoice
     let amount = 1_000_i128;
@@ -342,7 +343,7 @@ fn test_partial_refund_with_fee() {
     let merchant_account_id = env.register(MerchantAccount, ());
     let merchant_account = MerchantAccountClient::new(&env, &merchant_account_id);
     merchant_account.initialize(&merchant, &shade_id, &1_u64);
-    client.set_merchant_account(&merchant, &merchant_account_id);
+    client.link_merchant_account(&merchant, &merchant_account_id);
 
     let amount = 1_000_i128;
     let description = String::from_str(&env, "Fee Refund");

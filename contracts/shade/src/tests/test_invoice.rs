@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::shade::{Shade, ShadeClient};
+use crate::tests::support::LinkMerchantAccount as _;
 use crate::types::{DataKey, InvoiceStatus};
 use account::account::{MerchantAccount, MerchantAccountClient};
 use soroban_sdk::testutils::{Address as _, Events as _, Ledger as _};
@@ -58,11 +59,11 @@ fn create_test_token(env: &Env) -> Address {
 fn mark_invoice_paid(
     env: &Env,
     shade_contract_id: &Address,
-    merchant: &Address,
+    _merchant: &Address,
     invoice_id: u64,
     payer: &Address,
     date_paid: u64,
-    merchant_account_id: &Address,
+    _merchant_account_id: &Address,
     client: &ShadeClient<'_>,
 ) {
     let mut invoice = client.get_invoice(&invoice_id);
@@ -74,10 +75,6 @@ fn mark_invoice_paid(
         env.storage()
             .persistent()
             .set(&DataKey::Invoice(invoice_id), &invoice);
-        env.storage().persistent().set(
-            &DataKey::MerchantBalance(merchant.clone()),
-            merchant_account_id,
-        );
     });
 }
 
@@ -210,7 +207,7 @@ fn test_refund_invoice_success_within_window() {
     let merchant_account_id = env.register(MerchantAccount, ());
     let merchant_account = MerchantAccountClient::new(&env, &merchant_account_id);
     merchant_account.initialize(&merchant, &shade_contract_id, &1_u64);
-    client.set_merchant_account(&merchant, &merchant_account_id);
+    client.link_merchant_account(&merchant, &merchant_account_id);
 
     let token_admin = token::StellarAssetClient::new(&env, &token);
     token_admin.mint(&merchant_account_id, &amount);
@@ -374,7 +371,7 @@ fn test_void_invoice_already_paid() {
 
     // Create merchant account
     let merchant_account = Address::generate(&env);
-    client.set_merchant_account(&merchant, &merchant_account);
+    client.link_merchant_account(&merchant, &merchant_account);
 
     // Create and pay invoice
     let description = String::from_str(&env, "Test Invoice");
@@ -423,7 +420,7 @@ fn test_pay_cancelled_invoice() {
 
     // Create merchant account
     let merchant_account = Address::generate(&env);
-    client.set_merchant_account(&merchant, &merchant_account);
+    client.link_merchant_account(&merchant, &merchant_account);
 
     // Create invoice
     let description = String::from_str(&env, "Test Invoice");
@@ -548,7 +545,7 @@ fn test_amend_invoice_paid_fails() {
 
     // Create merchant account
     let merchant_account = Address::generate(&env);
-    client.set_merchant_account(&merchant, &merchant_account);
+    client.link_merchant_account(&merchant, &merchant_account);
 
     // Create and pay invoice
     let description = String::from_str(&env, "Test Invoice");

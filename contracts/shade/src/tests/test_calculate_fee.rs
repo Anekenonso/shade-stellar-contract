@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use crate::components::admin as admin_component;
+use crate::components::platform_fee as platform_fee_component;
 use crate::shade::Shade;
 use crate::shade::ShadeClient;
 use soroban_sdk::testutils::Address as _;
@@ -34,15 +34,15 @@ fn test_calculate_fee_returns_zero_when_no_fee_set() {
     let contract_id = client.address.clone();
     env.as_contract(&contract_id, || {
         assert_eq!(
-            admin_component::calculate_fee(&env, &merchant, &token, 0),
+            platform_fee_component::calculate_fee(&env, &merchant, &token, 0),
             0
         );
         assert_eq!(
-            admin_component::calculate_fee(&env, &merchant, &token, 1_000),
+            platform_fee_component::calculate_fee(&env, &merchant, &token, 1_000),
             0
         );
         assert_eq!(
-            admin_component::calculate_fee(&env, &merchant, &token, 1_000_000),
+            platform_fee_component::calculate_fee(&env, &merchant, &token, 1_000_000),
             0
         );
     });
@@ -60,7 +60,7 @@ fn test_calculate_fee_zero_amount() {
 
     env.as_contract(&contract_id, || {
         assert_eq!(
-            admin_component::calculate_fee(&env, &merchant, &token, 0),
+            platform_fee_component::calculate_fee(&env, &merchant, &token, 0),
             0
         );
     });
@@ -78,7 +78,7 @@ fn test_calculate_fee_5_percent() {
 
     env.as_contract(&contract_id, || {
         assert_eq!(
-            admin_component::calculate_fee(&env, &merchant, &token, 1_000),
+            platform_fee_component::calculate_fee(&env, &merchant, &token, 1_000),
             50
         );
     });
@@ -96,7 +96,7 @@ fn test_calculate_fee_1_percent() {
 
     env.as_contract(&contract_id, || {
         assert_eq!(
-            admin_component::calculate_fee(&env, &merchant, &token, 10_000),
+            platform_fee_component::calculate_fee(&env, &merchant, &token, 10_000),
             100
         );
     });
@@ -114,7 +114,7 @@ fn test_calculate_fee_10_percent() {
 
     env.as_contract(&contract_id, || {
         assert_eq!(
-            admin_component::calculate_fee(&env, &merchant, &token, 5_000),
+            platform_fee_component::calculate_fee(&env, &merchant, &token, 5_000),
             500
         );
     });
@@ -132,7 +132,7 @@ fn test_calculate_fee_100_percent() {
 
     env.as_contract(&contract_id, || {
         assert_eq!(
-            admin_component::calculate_fee(&env, &merchant, &token, 1_000),
+            platform_fee_component::calculate_fee(&env, &merchant, &token, 1_000),
             1_000
         );
     });
@@ -152,16 +152,16 @@ fn test_calculate_fee_truncates_fractional_result() {
     env.as_contract(&contract_id, || {
         // Too small to produce a whole unit
         assert_eq!(
-            admin_component::calculate_fee(&env, &merchant, &token, 1),
+            platform_fee_component::calculate_fee(&env, &merchant, &token, 1),
             0
         );
         assert_eq!(
-            admin_component::calculate_fee(&env, &merchant, &token, 9_999),
+            platform_fee_component::calculate_fee(&env, &merchant, &token, 9_999),
             0
         );
         // Exactly at the boundary: 10_000 * 1 / 10_000 = 1
         assert_eq!(
-            admin_component::calculate_fee(&env, &merchant, &token, 10_000),
+            platform_fee_component::calculate_fee(&env, &merchant, &token, 10_000),
             1
         );
     });
@@ -179,7 +179,7 @@ fn test_calculate_fee_reflects_updated_fee() {
 
     env.as_contract(&contract_id, || {
         assert_eq!(
-            admin_component::calculate_fee(&env, &merchant, &token, 10_000),
+            platform_fee_component::calculate_fee(&env, &merchant, &token, 10_000),
             200
         );
     });
@@ -188,7 +188,7 @@ fn test_calculate_fee_reflects_updated_fee() {
 
     env.as_contract(&contract_id, || {
         assert_eq!(
-            admin_component::calculate_fee(&env, &merchant, &token, 10_000),
+            platform_fee_component::calculate_fee(&env, &merchant, &token, 10_000),
             500
         );
     });
@@ -207,7 +207,7 @@ fn test_calculate_fee_large_amount() {
 
     env.as_contract(&contract_id, || {
         assert_eq!(
-            admin_component::calculate_fee(&env, &merchant, &token, 1_000_000_000),
+            platform_fee_component::calculate_fee(&env, &merchant, &token, 1_000_000_000),
             25_000_000
         );
     });
@@ -233,11 +233,11 @@ fn test_calculate_fee_per_token_independence() {
 
     env.as_contract(&contract_id, || {
         assert_eq!(
-            admin_component::calculate_fee(&env, &merchant, &token_a, 10_000),
+            platform_fee_component::calculate_fee(&env, &merchant, &token_a, 10_000),
             300
         );
         assert_eq!(
-            admin_component::calculate_fee(&env, &merchant, &token_b, 10_000),
+            platform_fee_component::calculate_fee(&env, &merchant, &token_b, 10_000),
             700
         );
     });

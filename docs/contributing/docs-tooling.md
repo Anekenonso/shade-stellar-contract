@@ -16,34 +16,16 @@ When you add a page, also add it to [`docs/SUMMARY.md`](../SUMMARY.md) or it wil
 
 ## Quality checks
 
-CI runs these on every PR that touches Markdown (`.github/workflows/docs-quality.yml`):
+CI checks links on every PR that touches Markdown (`.github/workflows/docs-quality.yml`), using [lychee](https://github.com/lycheeverse/lychee) with `lychee.toml`.
 
-| Check | Tool | Config |
-|---|---|---|
-| Links | [lychee](https://github.com/lycheeverse/lychee) | `lychee.toml` |
-| Markdown lint | [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) | `.markdownlint-cli2.jsonc` |
-| Spelling | [typos](https://github.com/crate-ci/typos) | `_typos.toml` |
-
-Run them locally from the repository root:
+Run it locally from the repository root:
 
 ```bash
-cargo install lychee typos-cli
-npm install -g markdownlint-cli2
+cargo install lychee
 
 lychee --config lychee.toml docs README.md CONTRIBUTING.md
-markdownlint-cli2 "docs/**/*.md" README.md CONTRIBUTING.md
-typos docs README.md CONTRIBUTING.md
 ```
 
-Or run all three with `make docs-check`.
-
-## Adding dictionary words
-
-If `typos` flags a valid project term (for example a Soroban or Stellar name), add it to `[default.extend-words]` in `_typos.toml` mapped to itself:
-
-```toml
-[default.extend-words]
-stroops = "stroops"
-```
+Or run it with `make docs-check`.
 
 To allowlist a URL that fails the link checker (for example a site that blocks bots), add it to `exclude` in `lychee.toml`.

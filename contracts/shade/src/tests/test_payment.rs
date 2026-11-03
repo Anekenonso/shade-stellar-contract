@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::shade::{Shade, ShadeClient};
+use crate::tests::support::LinkMerchantAccount as _;
 use crate::types::InvoiceStatus;
 use soroban_sdk::testutils::{Address as _, Events, Ledger as _};
 use soroban_sdk::{token, Address, Env, Map, String, Symbol, TryIntoVal, Val};
@@ -106,7 +107,7 @@ fn test_successful_payment_with_fee() {
 
     // Create merchant account (using a regular address as mock)
     let merchant_account = Address::generate(&env);
-    shade_client.set_merchant_account(&merchant, &merchant_account);
+    shade_client.link_merchant_account(&merchant, &merchant_account);
 
     // Create invoice for 1000 units
     let description = String::from_str(&env, "Test Invoice");
@@ -161,7 +162,7 @@ fn test_payment_with_zero_fee() {
 
     // Create merchant account
     let merchant_account = Address::generate(&env);
-    shade_client.set_merchant_account(&merchant, &merchant_account);
+    shade_client.link_merchant_account(&merchant, &merchant_account);
 
     // Create invoice for 1000 units
     let description = String::from_str(&env, "Test Invoice");
@@ -198,7 +199,7 @@ fn test_payment_with_zero_fee() {
 
 //     // Create merchant account
 //     let merchant_account = Address::generate(&env);
-//     shade_client.set_merchant_account(&merchant, &merchant_account);
+//     shade_client.link_merchant_account(&merchant, &merchant_account);
 
 //     // Create invoice for 1000 units
 //     let description = String::from_str(&env, "Test Invoice");
@@ -230,7 +231,7 @@ fn test_payment_rejects_expired_invoice() {
     shade_client.register_merchant(&merchant);
 
     let merchant_account = Address::generate(&env);
-    shade_client.set_merchant_account(&merchant, &merchant_account);
+    shade_client.link_merchant_account(&merchant, &merchant_account);
 
     let description = String::from_str(&env, "Expired Invoice");
     let expires_at = 1000_u64;
@@ -256,7 +257,7 @@ fn test_payment_invoice_already_paid() {
 
     // Create merchant account
     let merchant_account = Address::generate(&env);
-    shade_client.set_merchant_account(&merchant, &merchant_account);
+    shade_client.link_merchant_account(&merchant, &merchant_account);
 
     // Create invoice
     let description = String::from_str(&env, "Test Invoice");
@@ -285,7 +286,7 @@ fn test_payment_insufficient_funds() {
 
     // Create merchant account
     let merchant_account = Address::generate(&env);
-    shade_client.set_merchant_account(&merchant, &merchant_account);
+    shade_client.link_merchant_account(&merchant, &merchant_account);
 
     // Create invoice for 1000 units
     let description = String::from_str(&env, "Test Invoice");
@@ -311,7 +312,7 @@ fn test_payment_token_not_accepted() {
 
     // Create merchant account
     let merchant_account = Address::generate(&env);
-    shade_client.set_merchant_account(&merchant, &merchant_account);
+    shade_client.link_merchant_account(&merchant, &merchant_account);
 
     // Create invoice with unaccepted token
     let unaccepted_token_admin = Address::generate(&env);
@@ -369,7 +370,7 @@ fn test_payment_payer_authorization() {
 
     // Create merchant account
     let merchant_account = Address::generate(&env);
-    shade_client.set_merchant_account(&merchant, &merchant_account);
+    shade_client.link_merchant_account(&merchant, &merchant_account);
 
     // Create invoice
     let description = String::from_str(&env, "Test Invoice");
@@ -398,7 +399,7 @@ fn test_payment_updates_invoice_timestamps() {
 
     // Create merchant account
     let merchant_account = Address::generate(&env);
-    shade_client.set_merchant_account(&merchant, &merchant_account);
+    shade_client.link_merchant_account(&merchant, &merchant_account);
 
     // Create invoice
     let description = String::from_str(&env, "Test Invoice");
@@ -435,7 +436,7 @@ fn test_fee_calculation_accuracy() {
 
     // Create merchant account
     let merchant_account = Address::generate(&env);
-    shade_client.set_merchant_account(&merchant, &merchant_account);
+    shade_client.link_merchant_account(&merchant, &merchant_account);
 
     // Create invoice for 10000 units
     let description = String::from_str(&env, "Test Invoice");
@@ -465,7 +466,7 @@ fn test_partial_payment_two_equal_steps_reaches_paid() {
     let merchant = Address::generate(&env);
     shade_client.register_merchant(&merchant);
     let merchant_account = Address::generate(&env);
-    shade_client.set_merchant_account(&merchant, &merchant_account);
+    shade_client.link_merchant_account(&merchant, &merchant_account);
 
     let description = String::from_str(&env, "Partial Payment Invoice");
     let invoice_id = shade_client.create_invoice(&merchant, &description, &1000, &token, &None);
@@ -501,7 +502,7 @@ fn test_partial_payment_collects_fees_proportionally_each_step() {
     let merchant = Address::generate(&env);
     shade_client.register_merchant(&merchant);
     let merchant_account = Address::generate(&env);
-    shade_client.set_merchant_account(&merchant, &merchant_account);
+    shade_client.link_merchant_account(&merchant, &merchant_account);
 
     let description = String::from_str(&env, "Proportional Fee Invoice");
     let invoice_id = shade_client.create_invoice(&merchant, &description, &1000, &token, &None);
@@ -528,7 +529,7 @@ fn test_partial_payment_cannot_exceed_requested_amount() {
     let merchant = Address::generate(&env);
     shade_client.register_merchant(&merchant);
     let merchant_account = Address::generate(&env);
-    shade_client.set_merchant_account(&merchant, &merchant_account);
+    shade_client.link_merchant_account(&merchant, &merchant_account);
 
     let description = String::from_str(&env, "Overpay Guard Invoice");
     let invoice_id = shade_client.create_invoice(&merchant, &description, &1000, &token, &None);

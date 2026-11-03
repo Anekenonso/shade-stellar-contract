@@ -1,6 +1,7 @@
 extern crate std;
 use crate::errors::ContractError;
 use crate::shade::{Shade, ShadeClient};
+use crate::tests::support::LinkMerchantAccount as _;
 use crate::types::Role;
 use soroban_sdk::testutils::{Address as _, Events as _};
 use soroban_sdk::{token, Address, Env, String, Symbol, TryIntoVal};
@@ -32,7 +33,7 @@ fn register_merchant_with_account(
     let merchant = Address::generate(env);
     let merchant_account = merchant.clone();
     client.register_merchant(&merchant);
-    client.set_merchant_account(&merchant, &merchant_account);
+    client.link_merchant_account(&merchant, &merchant_account);
     client.set_merchant_accepted_tokens(
         &merchant,
         &soroban_sdk::Vec::from_array(env, [token.clone()]),

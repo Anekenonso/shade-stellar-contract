@@ -1,0 +1,20 @@
+[package]
+name = "escrow"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["lib", "cdylib"]
+doctest = false
+
+[features]
+from-shade = ["dep:shade", "dep:account"]
+
+[dependencies]
+soroban-sdk = { workspace = true }
+shade = { path = "../../contracts/shade", optional = true }
+account = { path = "../../contracts/account", optional = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }

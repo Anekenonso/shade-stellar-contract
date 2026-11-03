@@ -6,9 +6,8 @@ This page consolidates the Shade Protocol's security posture into a single docum
 
 | Asset | Description |
 |-------|-------------|
-| Merchant balances | Funds held in merchant account contracts, credited from invoice payments and subscription charges. |
-| In-flight payments | Tokens transferred from a payer during `pay_invoice` or `charge_subscription` before settlement. |
-| Escrowed funds | Assets locked in escrow for physical-goods transactions. |
+| Merchant balances | Funds held in merchant account contracts, credited from invoice payments. |
+| In-flight payments | Tokens transferred from a payer during `pay_invoice` before settlement. |
 | Fee revenue | Platform fees routed to `PlatformAccount` from every payment. |
 | Protocol configuration | Admin-controlled settings: accepted tokens, fee rates, oracle configs, role assignments, WASM upgrades. |
 
@@ -19,7 +18,7 @@ The protocol assumes the following hold true:
 | Assumption | Description |
 |------------|-------------|
 | Honest admin | The admin address acts in the protocol's interest. A compromised admin can pause the contract, change fees, upgrade WASM, and assign arbitrary roles. |
-| Honest oracles | Configured oracles return accurate price feeds. A compromised oracle can manipulate fiat-denominated invoice amounts and fiat-pegged campaign goals. |
+| Honest oracles | Configured oracles return accurate price feeds. A compromised oracle can manipulate fiat-denominated invoice amounts. |
 | Well-behaved SEP-41 tokens | Accepted tokens conform to the SEP-41 standard. A malicious token contract could drain funds via reentrancy or return unexpected values. |
 | Soroban host guarantees | The Soroban runtime correctly enforces authorization, storage isolation, and contract sandboxing. |
 
@@ -29,7 +28,6 @@ The protocol assumes the following hold true:
 |----------------|-------------|
 | Malicious payer | A user who pays invoices but attempts to manipulate payment amounts, exploit partial payments, or replay signed payloads. |
 | Malicious merchant | A registered merchant who attempts to create fraudulent invoices, claim unauthorized refunds, or manipulate analytics. |
-| Malicious arbiter/relayer | A bridge listener or relayer who attempts to record phantom deposits or censor legitimate ones. |
 | Compromised admin | An attacker who gains control of the admin key and can reconfigure the entire protocol. |
 | Compromised oracle | An attacker who manipulates price feeds to alter fiat-denominated amounts. |
 | Adversarial token contract | A SEP-41 token that behaves maliciously during transfers or approvals. |
@@ -66,7 +64,6 @@ The protocol assumes the following hold true:
 | Threat | Mitigation | Residual risk |
 |--------|------------|---------------|
 | Admin upgrades to malicious WASM | `upgrade` requires admin auth and replaces the contract WASM immediately. | Relies on honest admin. A compromised admin can deploy arbitrary code. |
-| DAO governance bypassed | `upgrade` can be called directly by admin, bypassing the DAO flow (`propose_upgrade`/`vote_on_upgrade`/`finalize_upgrade`). | The DAO governance flow exists but is not mandatory. Admin can always call `upgrade` directly. |
 
 ### Roles and access control
 
@@ -75,51 +72,6 @@ The protocol assumes the following hold true:
 | Privilege escalation | `grant_role` and `revoke_role` require admin auth. Roles are checked per-function. | Relies on honest admin. Admin can grant any role to any address. |
 | Role confusion | Three roles exist: `Admin`, `Manager`, `Operator`. Each function checks the specific role needed. | The boundary between `Manager` and `Operator` is not always strictly enforced in every function — some functions only check for admin. |
 
-### Escrow
-
-| Threat | Mitigation | Residual risk |
-|--------|------------|---------------|
-| Buyer never funds escrow | `release_escrow` and `refund_escrow` check that the escrow is in the `Funded` status. | Funds remain locked until the escrow expires or both parties cooperate. |
-| Seller never releases | No automatic timeout release is implemented. | If the buyer funds but the seller refuses to release, funds are locked until an admin intervenes. |
-| Expired escrow refund | Expired escrow refunds are handled by a component that checks invoice expiry. | Relies on the linked invoice having a valid `expires_at`. |
-
-### Ticketing
-
-| Threat | Mitigation | Residual risk |
-|--------|------------|---------------|
-| Overselling tickets | `purchase_ticket` checks `sold < capacity` before minting. | None — capacity is enforced. |
-| Resale price manipulation | `resell_ticket` enforces `resale_price <= original_price * 2` and `resale_price >= original_price / 2`. | The 2x bounds are hardcoded. Merchants cannot configure wider bounds. |
-| Royalty theft on resale | The organizer royalty is computed as `resale_price * royalty_bps / 10_000` and deducted before the seller receives proceeds. | None — royalty is enforced on-chain. |
-
-### Subscriptions
-
-| Threat | Mitigation | Residual risk |
-|--------|------------|---------------|
-| Charge before interval elapsed | `charge_subscription` panics with `ChargeTooEarly` if the billing interval has not elapsed. | None — timing is enforced. |
-| Customer revokes token allowance | If the customer revokes the SEP-41 allowance before a charge, the transfer fails. | The subscription remains active but charges fail. The merchant or customer must cancel explicitly. |
-
-### Bridge / cross-chain
-
-| Threat | Mitigation | Residual risk |
-|--------|------------|---------------|
-| Phantom bridge deposit | `record_bridge_deposit` is restricted to registered bridge listeners. | Relies on honest bridge listeners. A compromised listener can record phantom deposits. |
-| Double-credit of a deposit | `source_tx_id` is used as an idempotency key via `ProcessedBridgeDeposit`. | None — the same origin transaction cannot be credited twice. |
-| Unauthorized listener registration | `register_bridge_listener` and `remove_bridge_listener` require admin auth. | Relies on honest admin. |
-
-### Multi-sig withdrawal
-
-| Threat | Mitigation | Residual risk |
-|--------|------------|---------------|
-| Single signer executes large withdrawal | Withdrawals above the threshold require `quorum` approvals from registered signers. | Relies on honest signers. If the quorum is compromised, funds can be withdrawn. |
-| Threshold bypass | `propose_withdrawal` panics with `BelowMultiSigThreshold` if the amount is below the threshold. | A withdrawal just below the threshold has no multi-sig requirement. |
-
-### Campaigns / crowdfunding
-
-| Threat | Mitigation | Residual risk |
-|--------|------------|---------------|
-| Merchant claims goal not met | `PledgeCampaign` refunds all pledges if the deadline passes without meeting the goal. `Campaign` contributions are non-refundable by design. | Different campaign types have different refund semantics — integrators must understand which type they are using. |
-| Hard-cap vote manipulation | `HardCapVoting` requires a minimum number of votes and a voting window. | Relies on honest voters. No sybil resistance beyond wallet-based voting. |
-
 ## Known limitations
 
 | Limitation | Description |
@@ -127,10 +79,9 @@ The protocol assumes the following hold true:
 | Unbounded collections | `get_merchants`, `get_invoices`, and similar list functions return unbounded `Vec` results. For large datasets, this may exceed Soroban resource limits. |
 | Oracle staleness | Fiat-denominated amounts depend on oracle prices. Stale oracle data can lead to incorrect conversions. The contract does not enforce a freshness requirement. |
 | No on-chain swap execution | The `PaymentRoute::Swap` path is defined but actual swap execution depends on external DEX router contracts. The contract validates the route structure but cannot guarantee the swap completes successfully. |
-| Batch size limits | `pay_invoices_batch` and `batch_mint_nfts` process all items in a single transaction. Very large batches may exceed Soroban resource limits. |
-| Admin centralisation | The admin has unilateral control over fees, token whitelisting, role assignments, and WASM upgrades. The DAO governance flow exists but is not mandatory. |
+| Batch size limits | `pay_invoices_batch` processes all items in a single transaction. Very large batches may exceed Soroban resource limits. |
+| Admin centralisation | The admin has unilateral control over fees, token whitelisting, role assignments, and WASM upgrades. |
 | Refund window | Refund eligibility is based on a time window that must be configured per invoice. If not configured, invoices may become non-refundable. |
-| No automatic escrow timeout | Escrowed funds have no automatic release mechanism. If both parties stop cooperating, funds remain locked until admin intervention. |
 
 ## Pre-audit checklist
 

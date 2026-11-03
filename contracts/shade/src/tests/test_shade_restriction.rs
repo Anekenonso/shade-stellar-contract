@@ -2,6 +2,7 @@
 
 use crate::errors::ContractError;
 use crate::shade::{Shade, ShadeClient};
+use crate::tests::support::LinkMerchantAccount as _;
 use crate::types::Role;
 use soroban_sdk::testutils::{Address as _, Events as _};
 use soroban_sdk::{Address, Env, Map, Symbol, TryIntoVal, Val};
@@ -40,7 +41,7 @@ fn setup() -> (
     acct_client.initialize(&merchant, &contract_id, &merchant_id_val);
 
     // Link Merchant Account in Shade
-    client.set_merchant_account(&merchant, &acct_id);
+    client.link_merchant_account(&merchant, &acct_id);
 
     (env, client, acct_client, admin, manager, merchant)
 }

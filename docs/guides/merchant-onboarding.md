@@ -17,17 +17,17 @@ An ordered, executable checklist for taking a merchant from nothing to accepting
 
 The table below reflects what the contract source actually enforces (see [`contracts/shade/src/components/merchant.rs`](../../contracts/shade/src/components/merchant.rs)), not just the sequence the tracking issue proposed. Two things differ from a strictly linear reading of that list:
 
-- `set_merchant_account`, `set_merchant_key`, and `set_merchant_webhook` do **not** check `is_merchant_active` — they only require the caller to be a registered merchant (`is_merchant`). They can be called even while a merchant is deactivated.
+- `set_merchant_key` and `set_merchant_webhook` do **not** check `is_merchant_active` — they only require the caller to be a registered merchant (`is_merchant`). They can be called even while a merchant is deactivated.
 - `set_merchant_accepted_tokens` (and `remove_merchant_accepted_token`) **do** check `is_merchant_active`, and fail with `MerchantNotActive` (32) if the admin has not yet activated the merchant.
 
 That makes `set_merchant_status` (activation) a hard prerequisite for step 5 specifically, not for every step after registration.
 
 | Step | Method | Caller | Required authority | Result |
 |---|---|---|---|---|
-| 1 | `register_merchant` | Merchant | `merchant.require_auth()` | Merchant is created with `active: true`, `verified: false`; a merchant [account](../glossary.md#merchant-account) contract is deployed and linked. |
+| 1 | `register_merchant` | Merchant | `merchant.require_auth()` | Merchant is created with `active: true`, `verified: false`. No account contract exists yet. |
 | 2 | `set_merchant_status` | Admin | `core::assert_admin` (the stored `DataKey::Admin`) | Merchant's `active` flag is set. New merchants are already `active: true` by default — this step is only needed if an admin previously deactivated the merchant, or to explicitly re-confirm activation. |
 | 3 | `verify_merchant` | Admin | `core::assert_admin` | Merchant's `verified` flag is set. This is a separate signal from `active` — nothing in the payment path (`create_invoice`, `pay_invoice`) currently checks `verified`. Treat it as a platform-level trust marker, not a payment gate. |
-| 4 | `set_merchant_account` | Merchant | `merchant.require_auth()` | Points `DataKey::MerchantAccount(merchant_id)` at a custody contract address. `register_merchant` already deploys and links one automatically — call this only to repoint the merchant at a different account. |
+| 4 | `deploy_merchant_account` | Merchant | `merchant.require_auth()`, and merchant must be `active` | Deploys the merchant's account contract and links it. Required before the merchant can be paid. |
 | 5 | `set_merchant_accepted_tokens` | Merchant | `merchant.require_auth()`, and merchant must be `active` | Sets the merchant's own accepted-token list, validated against the global whitelist. Requires step 2 (active) to have happened first. |
 | 6 | `set_merchant_key` | Merchant | `merchant.require_auth()` | Registers a 32-byte ed25519 public key for [signed invoices](../security/signatures.md). |
 | 7 | `set_merchant_webhook` | Merchant | `merchant.require_auth()` | Stores a webhook URL string on the merchant record. See [Merchant webhooks and off-chain notifications](webhooks.md) for what this does and does not do. |
@@ -118,36 +118,34 @@ fn verify_merchant(env: Env, admin: Address, merchant_id: u64, status: bool);
   ```
 - **Common failure:** `MerchantNotFound` (6) via the underlying `get_merchant` lookup.
 
-### 4. `set_merchant_account` — optional
-
-> Optional — unlocks: repointing which `account` contract custodies this merchant's funds. `register_merchant` already deploys and links a default account, so most merchants never need to call this directly.
+### 4. `deploy_merchant_account` — required before accepting payments
 
 ```rust
-fn set_merchant_account(env: Env, merchant: Address, account: Address);
+fn deploy_merchant_account(env: Env, merchant: Address) -> Address;
 ```
 
-- **Purpose:** Sets `DataKey::MerchantAccount(merchant_id)` to a specific `account` contract address.
+- **Purpose:** Deploys the merchant's `account` contract with the hub as its manager, and sets `DataKey::MerchantAccount(merchant_id)`. Each merchant can do this once.
 - **Signer:** The merchant's own address.
+- **Prerequisite:** The admin has called `set_account_wasm_hash`.
 - **CLI:**
   ```bash
   stellar contract invoke \
     --id $SHADE_ID \
     --source merchant \
     --network standalone \
-    -- set_merchant_account \
-    --merchant $(stellar keys address merchant) \
-    --account $ACCOUNT_CONTRACT_ID
+    -- deploy_merchant_account \
+    --merchant $(stellar keys address merchant)
   ```
-- **Expected result:** No return value. **No event is emitted** for this call — the source has no `events::publish_*` call in `set_merchant_account`.
+- **Expected result:** The account's address. `MerchantAccountDeployedEvent` is emitted.
 - **Verify:**
   ```bash
   stellar contract invoke --id $SHADE_ID --network standalone -- get_merchant_account --merchant_id 1
   ```
-- **Common failure:** `MerchantNotFound` (6) if the caller is not a registered merchant.
+- **Common failures:** `MerchantNotFound` (6), `WasmHashNotSet` (18), `MerchantNotActive` (32), `MerchantAccountAlreadySet` (52).
 
 ### 5. `set_merchant_accepted_tokens` — optional but recommended
 
-> Optional — unlocks: restricting which tokens this specific merchant accepts, out of the globally whitelisted set. If skipped, [`is_token_accepted_for_merchant`](../../contracts/shade/src/components/merchant.rs#L444-L460) falls back to accepting **every** globally whitelisted token for this merchant — so skipping this step is not a blocker, but it does mean the merchant accepts the whole global list by default.
+> Optional — unlocks: restricting which tokens this specific merchant accepts, out of the globally whitelisted set. If skipped, [`is_token_accepted_for_merchant`](../../contracts/shade/src/components/merchant.rs) falls back to accepting **every** globally whitelisted token for this merchant — so skipping this step is not a blocker, but it does mean the merchant accepts the whole global list by default.
 
 ```rust
 fn set_merchant_accepted_tokens(env: Env, merchant: Address, tokens: Vec<Address>);
@@ -237,7 +235,7 @@ Every write above has a corresponding read, tabulated here for quick reference:
 | `register_merchant` | `is_merchant`, `find_merchant_id`, `get_merchant` |
 | `set_merchant_status` | `is_merchant_active` |
 | `verify_merchant` | `is_merchant_verified` |
-| `set_merchant_account` | `get_merchant_account` |
+| `deploy_merchant_account` | `get_merchant_account` |
 | `set_merchant_accepted_tokens` | `get_merchant_accepted_tokens`, `is_token_accepted_for_merchant` |
 | `set_merchant_key` | `get_merchant_key` |
 | `set_merchant_webhook` | `get_merchant_webhook` |
@@ -289,7 +287,7 @@ The repository does not currently ship a single scripted smoke-test command for 
 | `set_merchant_accepted_tokens` fails with `TokenNotAccepted` | The token isn't on the *global* whitelist yet | `is_accepted_token --token <address>` | Admin calls `add_accepted_token` first |
 | `set_merchant_accepted_tokens` fails with `MerchantNotActive` | Merchant was never activated, or was deactivated | `is_merchant_active --merchant_id <id>` | Admin calls `set_merchant_status(admin, merchant_id, true)` |
 | `pay_invoice` fails with `TokenNotAcceptedByMerchant` | Payer used a token the merchant's own list excludes (even though it's globally whitelisted) | `is_token_accepted_for_merchant --merchant <address> --token <address>` | Merchant adds the token via `set_merchant_accepted_tokens`, or payer uses a token the merchant already accepts |
-| `get_merchant_account` panics with `MerchantAccountNotSet` | No account was ever linked — should not happen after `register_merchant`, but can if the storage was somehow never written | `get_merchant_account --merchant_id <id>` | Merchant calls `set_merchant_account` with a valid deployed `account` contract address |
+| `get_merchant_account` panics with `MerchantAccountNotSet` | The merchant has not called `deploy_merchant_account`| `get_merchant_account --merchant_id <id>` | Merchant calls `set_merchant_account` with a valid deployed `account` contract address |
 | `register_merchant` fails with `WasmHashNotSet` | Admin never called `set_account_wasm_hash` | Attempt `register_merchant` and read the panic code | Admin calls `set_account_wasm_hash` with a valid installed WASM hash before any merchant registers |
 
 See [Errors reference](../reference/errors.md) for the full list of `shade` error codes and their corrective actions.

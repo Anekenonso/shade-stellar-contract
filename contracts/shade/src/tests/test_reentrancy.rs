@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::components::admin as admin_component;
+use crate::components::platform_fee as platform_fee_component;
 use crate::components::reentrancy;
 use crate::errors::ContractError;
 use crate::shade::Shade;
@@ -191,7 +192,7 @@ fn test_set_fee_blocks_reentrant_call() {
         env.storage()
             .persistent()
             .set(&DataKey::ReentrancyStatus, &true);
-        admin_component::set_fee(&env, &admin, &token, 500);
+        platform_fee_component::set_fee(&env, &admin, &token, 500);
     });
 }
 

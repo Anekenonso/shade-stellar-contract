@@ -1,13 +1,11 @@
 #![cfg(test)]
 
-use super::*;
 use soroban_sdk::{
     testutils::{Address as _, Events},
-    vec, Address, Env, IntoVal,
+    Address, Env, IntoVal,
 };
 
-use crate::account::MerchantAccount;
-use crate::events::AccountVerified;
+use crate::account::{MerchantAccount, MerchantAccountClient};
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -49,17 +47,11 @@ fn test_successful_verification() {
 
     client.verify_account();
 
-    // Status check
-    assert!(
-        client.is_verified_account(),
-        "account should be verified after verify_account"
-    );
-
     // Event check — find the AccountVerified event in the emitted list
     let events = env.events().all();
-    let verified_event = events.iter().find(|(contract, _topics, _data)| {
-        *contract == contract_id
-    });
+    let verified_event = events
+        .iter()
+        .find(|(contract, _topics, _data)| *contract == contract_id);
 
     assert!(
         verified_event.is_some(),
@@ -69,6 +61,12 @@ fn test_successful_verification() {
     // Confirm the event data carries a timestamp (u64)
     let (_, _topics, data) = verified_event.unwrap();
     let _: u64 = data.into_val(&env); // will panic if type doesn't match
+
+    // Status check
+    assert!(
+        client.is_verified_account(),
+        "account should be verified after verify_account"
+    );
 }
 
 /// Calling `verify_account` from a non-manager address must panic.

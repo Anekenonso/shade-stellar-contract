@@ -135,10 +135,9 @@ impl Fixture {
         shade.register_merchant(&merchant);
         let merchant_id = shade.find_merchant_id(&merchant);
 
-        let account_id = env.register(account_wasm::WASM, ());
-        let account = account_wasm::Client::new(&env, &account_id);
-        account.initialize(&merchant, &shade_id, &merchant_id);
-        shade.set_merchant_account(&merchant, &account_id);
+        let wasm_hash = env.deployer().upload_contract_wasm(account_wasm::WASM);
+        shade.set_account_wasm_hash(&admin, &wasm_hash);
+        let account_id = shade.deploy_merchant_account(&merchant);
 
         // 6. Fund a payer.
         let payer = Address::generate(&env);

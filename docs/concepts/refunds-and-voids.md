@@ -17,13 +17,13 @@ Every row is a distinct function; there is no single "refund" entry point that b
 
 ## Full refunds — `refund_invoice`
 
-Verified at [`invoice.rs:443-514`](../../contracts/shade/src/components/invoice.rs#L443-L514) (`check_invoice_refund_eligibility` + `refund_invoice`).
+Verified at [`invoice.rs:443-514`](../../contracts/shade/src/components/invoice.rs) (`check_invoice_refund_eligibility` + `refund_invoice`).
 
 - **Caller:** the invoice's owning merchant, verified by comparing `merchant::get_merchant_id(merchant_address)` against `invoice.merchant_id`; panics `NotAuthorized` on mismatch.
 - **Allowed starting state:** `InvoiceStatus::Paid` only — `check_invoice_refund_eligibility` panics `InvoiceNotPaid` otherwise.
 - **Refund window:** `elapsed = now - date_paid`; panics `RefundPeriodExpired` if `elapsed > MAX_REFUND_DURATION` (`604_800` seconds / 7 days, `invoice.rs:23`). If `date_paid` is unset (should not happen once `Paid`), it panics `InvoiceNotPaid`.
 - **Amount:** `amount_to_refund = invoice.amount - invoice.amount_refunded`. For a `Paid` invoice this is always the invoice's face amount minus anything already refunded — since `Paid` is only reachable from a `refund_invoice_partial` cycle by resolving to `Refunded` (a terminal state this function can't re-enter), in practice this is the full `invoice.amount` the first time `refund_invoice` runs on a never-refunded `Paid` invoice.
-- **Fee treatment:** the refund amount is computed purely from `invoice.amount`/`amount_refunded`. It does **not** re-read or subtract the platform fee taken at payment time — `refund_invoice` pays `amount_to_refund` entirely out of the merchant's own account. The platform fee collected at `pay_invoice` time (paid separately, straight to the platform account at payment time — see [`invoice.rs:736-738`](../../contracts/shade/src/components/invoice.rs#L736-L738)) is **not** returned to the merchant or clawed back from the platform account by `refund_invoice`. In other words: the platform fee is absorbed by the merchant, who must refund the buyer's full paid amount from their own account regardless of what fee was already deducted at payment time.
+- **Fee treatment:** the refund amount is computed purely from `invoice.amount`/`amount_refunded`. It does **not** re-read or subtract the platform fee taken at payment time — `refund_invoice` pays `amount_to_refund` entirely out of the merchant's own account. The platform fee collected at `pay_invoice` time (paid separately, straight to the platform account at payment time — see [`invoice.rs:736-738`](../../contracts/shade/src/components/invoice.rs)) is **not** returned to the merchant or clawed back from the platform account by `refund_invoice`. In other words: the platform fee is absorbed by the merchant, who must refund the buyer's full paid amount from their own account regardless of what fee was already deducted at payment time.
 - **Funds movement:** checked against the merchant's live token balance (`token_client.balance(&merchant_account)`); panics `InsufficientBalance` if short. Transferred via `MerchantAccountRefundClient::refund(token, amount, payer)` — i.e. the call goes through the merchant's `account` contract, not a direct token transfer from `shade`.
 - **Resulting state:** `invoice.amount_refunded += amount_to_refund`; `invoice.status = InvoiceStatus::Refunded`.
 - **Accounting fields:** `amount_refunded` is the only field this function updates besides `status`.
@@ -31,7 +31,7 @@ Verified at [`invoice.rs:443-514`](../../contracts/shade/src/components/invoice.
 
 ## Partial refunds — `refund_invoice_partial`
 
-Verified at [`invoice.rs:577-659`](../../contracts/shade/src/components/invoice.rs#L577-L659).
+Verified at [`invoice.rs:577-659`](../../contracts/shade/src/components/invoice.rs).
 
 - **Caller:** the invoice's owning merchant (same ownership check as `refund_invoice`).
 - **Allowed starting state:** `InvoiceStatus::Paid` or `InvoiceStatus::PartiallyRefunded` — panics `InvalidInvoiceStatus` otherwise. This is what makes repeated partial refunds possible: after one partial refund leaves the invoice `PartiallyRefunded`, the same function can be called again.
@@ -48,7 +48,7 @@ Verified at [`invoice.rs:577-659`](../../contracts/shade/src/components/invoice.
 
 ## Voids — `void_invoice`
 
-Verified at [`invoice.rs:801-832`](../../contracts/shade/src/components/invoice.rs#L801-L832).
+Verified at [`invoice.rs:801-832`](../../contracts/shade/src/components/invoice.rs).
 
 - **Caller:** the invoice's owning merchant.
 - **Allowed starting state:** `InvoiceStatus::Pending` only — panics `InvalidInvoiceStatus` for any other status, including `PartiallyPaid`. **A paid invoice (`Paid`, `PartiallyPaid`, `PartiallyRefunded`, or already `Refunded`) cannot be voided** — this is directly enforced by the status check, not inferred.
@@ -60,7 +60,7 @@ Verified at [`invoice.rs:801-832`](../../contracts/shade/src/components/invoice.
 
 ## Amendments — `amend_invoice`
 
-Verified at [`invoice.rs:834-884`](../../contracts/shade/src/components/invoice.rs#L834-L884).
+Verified at [`invoice.rs:834-884`](../../contracts/shade/src/components/invoice.rs).
 
 - **Caller:** the invoice's owning merchant.
 - **Allowed starting state:** `InvoiceStatus::Pending` only — panics `InvalidInvoiceStatus` otherwise. An invoice that has received any payment, been voided, or been refunded cannot be amended.
@@ -74,14 +74,13 @@ Verified at [`invoice.rs:834-884`](../../contracts/shade/src/components/invoice.
 
 ## Buyer-initiated expiry claim — `claim_refund`
 
-Not one of the four operations named in the page title, but the only other function in `invoice.rs` that moves funds backward from merchant to buyer, so it is documented here for completeness. Verified at [`invoice.rs:886-951`](../../contracts/shade/src/components/invoice.rs#L886-L951).
+Not one of the four operations named in the page title, but the only other function in `invoice.rs` that moves funds backward from merchant to buyer, so it is documented here for completeness. Verified at [`invoice.rs:886-951`](../../contracts/shade/src/components/invoice.rs).
 
 - **Caller:** `buyer`, which must equal `invoice.payer` — panics `NotAuthorized` (via the `ContractError` variant) otherwise.
-- **Preconditions:** `invoice.expires_at` must be set (panics `InvoiceExpired` if `None`); the current ledger time must be at or past `expires_at` (panics with `EscrowError::EscrowNotExpired` otherwise — note this reuses the `EscrowError` enum, not a dedicated invoice-expiry error); status must not already be `Refunded` (panics `EscrowError::EscrowAlreadyRefunded`); status must be `Paid` or `PartiallyPaid` (panics `InvalidInvoiceStatus` otherwise); `amount_paid - amount_refunded` must be `> 0` (panics `EscrowError::EscrowAlreadyRefunded` if not, i.e. it was already fully refunded through some other path).
+- **Preconditions:** `invoice.expires_at` must be set (panics `InvoiceExpired` if `None`); the current ledger time must be at or past `expires_at` (panics `InvoiceNotExpired` otherwise); status must not already be `Refunded` (panics `InvoiceAlreadyRefunded`); status must be `Paid` or `PartiallyPaid` (panics `InvalidInvoiceStatus` otherwise); `amount_paid - amount_refunded` must be `> 0` (panics `InvoiceAlreadyRefunded` if not, i.e. it was already fully refunded through some other path).
 - **Amount:** `amount_paid - amount_refunded` — whatever was actually paid in, less anything already refunded. Unlike `refund_invoice`, this is based on `amount_paid`, not `invoice.amount`, so it correctly handles a `PartiallyPaid` invoice that expired before full payment.
 - **Funds movement:** same mechanism as the merchant-initiated refunds — `MerchantAccountRefundClient::refund(token, amount, buyer)` from the merchant's account, balance-checked first.
 - **Resulting state:** `amount_refunded += amount_to_refund`; `status = Refunded`.
-- **Event:** `EscrowExpiredRefundEvent { invoice_id, buyer, amount, token, timestamp }` — a distinct event type from the merchant-initiated refund events, despite producing the same `Refunded` terminal status.
 
 ## Event reconciliation
 
@@ -92,9 +91,9 @@ Not one of the four operations named in the page title, but the only other funct
 | `refund_invoice_partial` (does not complete) | `InvoicePartiallyRefundedEvent` | `invoice_id`, `merchant`, `amount` (this call's increment), `total_amount_refunded` (cumulative), `timestamp` | After the storage write | `Paid`/`PartiallyRefunded` → `PartiallyRefunded` |
 | `void_invoice` | `InvoiceCancelledEvent` | `invoice_id`, `merchant`, `timestamp` | After the storage write | `Pending` → `Cancelled` |
 | `amend_invoice` | `InvoiceAmendedEvent` | `invoice_id`, `merchant`, `old_amount`, `new_amount`, `timestamp` | After the storage write | `Pending` → `Pending` (fields changed) |
-| `claim_refund` | `EscrowExpiredRefundEvent` | `invoice_id`, `buyer`, `amount`, `token`, `timestamp` | After the storage write | `Paid`/`PartiallyPaid` → `Refunded` |
+| `claim_refund` | `InvoiceExpiredRefundEvent` | `invoice_id`, `buyer`, `amount`, `token`, `timestamp` | After the storage write | `Paid`/`PartiallyPaid` → `Refunded` |
 
-**Reconciliation guidance for an off-chain ledger:** because `InvoiceRefundedEvent.amount` always reports the invoice's current face amount rather than the specific transfer that just happened, an off-chain system that wants the actual token amount moved by *that* call should either (a) sum `InvoicePartiallyRefundedEvent.amount` values plus the final completing transfer's implied remainder (`invoice.amount - amount_refunded` immediately before the completing call), or (b) read the invoice's `amount_refunded` field before and after processing the event and take the difference, rather than trusting `InvoiceRefundedEvent.amount` as "the amount just transferred." `claim_refund`'s `EscrowExpiredRefundEvent.amount` does not have this ambiguity — it reports the actual transferred amount directly.
+**Reconciliation guidance for an off-chain ledger:** because `InvoiceRefundedEvent.amount` always reports the invoice's current face amount rather than the specific transfer that just happened, an off-chain system that wants the actual token amount moved by *that* call should either (a) sum `InvoicePartiallyRefundedEvent.amount` values plus the final completing transfer's implied remainder (`invoice.amount - amount_refunded` immediately before the completing call), or (b) read the invoice's `amount_refunded` field before and after processing the event and take the difference, rather than trusting `InvoiceRefundedEvent.amount` as "the amount just transferred." `claim_refund`'s `InvoiceExpiredRefundEvent.amount` does not have this ambiguity — it reports the actual transferred amount directly.
 
 All six events above are defined in [`contracts/shade/src/events.rs`](../../contracts/shade/src/events.rs); see that file for the full `#[contractevent]` struct definitions this table summarizes.
 

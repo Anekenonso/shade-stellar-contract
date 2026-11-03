@@ -49,7 +49,7 @@ Use blockquote-style callouts with a bold label, one per paragraph of callout co
 
 > **Warning:** `upgrade` replaces the contract's WASM immediately for anyone calling it with admin auth. Coordinate upgrades through the DAO governance flow (`propose_upgrade` / `vote_on_upgrade` / `finalize_upgrade`) rather than calling `upgrade` directly in production.
 
-> **Security:** `claim_refund` and `release_escrow` both move funds and must be reviewed for reentrancy on every change — see the [Reentrancy Guard](../concepts/reentrancy-guard.md) concept page.
+> **Security:** `claim_refund` and `refund_invoice` both move funds and must be reviewed for reentrancy on every change — see the [Reentrancy Guard](../security/reentrancy.md) concept page.
 ```
 
 - **Note** — supplementary information that helps understanding but isn't required to proceed.
@@ -73,7 +73,7 @@ Use blockquote-style callouts with a bold label, one per paragraph of callout co
 Use these terms consistently across all documentation, matching the domain language used in the Rust source (see [`docs/glossary.md`](../glossary.md)):
 
 - **merchant** — a registered business/individual accepting payments through Shade. Do not use "seller," "vendor," or "business" interchangeably.
-- **payer** — the party paying an invoice or subscription charge. Do not use "buyer" or "customer" except where the code itself uses that term (e.g. escrow's `buyer` field).
+- **payer** — the party paying an invoice. Do not use "buyer" or "customer" except where the code itself uses that term (e.g. escrow's `buyer` field).
 - **invoice** — a payable request created by a merchant. Do not use "bill" or "charge" for this concept.
 - **admin** — the contract administrator role (`DataKey::Admin`). Do not use "owner" or "superuser."
 
@@ -86,7 +86,7 @@ A docs PR must satisfy all of the following before merge:
 - [ ] **Accuracy against code** — every signature, type, storage key, and behavior claim was checked against the current source, not memory or an older doc.
 - [ ] **Working links** — every relative link and line-range link resolves; no link points at a renamed or deleted file.
 - [ ] **Spell-check** — page has been run through a spell-checker; domain terms match [`docs/glossary.md`](../glossary.md) spelling exactly.
-- [ ] **Template compliance** — the page uses the correct template from [`docs/contributing/templates/`](templates/) for its page type, with all required sections present.
+- [ ] **Template compliance** — the page uses the correct template from [`docs/contributing/templates/`](templates) for its page type, with all required sections present.
 - [ ] **Terminology** — first use of each glossary term links to `docs/glossary.md`; terminology is consistent with [Terminology](#terminology) above.
 - [ ] **Style compliance** — sentence-case headings, tagged code blocks, second-person present-tense voice.
 - [ ] **Index updated** — new pages are linked from the relevant `docs/<section>/README.md` and, if top-level, from [`docs/README.md`](../README.md).

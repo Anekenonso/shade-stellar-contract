@@ -20,9 +20,12 @@ The `account` contract implements the `MerchantAccountTrait` defined in `contrac
 ```rust
 fn initialize(env: Env, merchant: Address, manager: Address, merchant_id: u64);
 fn get_merchant(env: Env) -> Address;
+fn get_manager(env: Env) -> Address;
+fn get_account_info(env: Env) -> AccountInfo;
 ```
 - `initialize`: Called exclusively during contract deployment by the `account_factory` to bind the merchant address, manager/operator address, and merchant ID.
 - `get_merchant`: Returns the registered owner `Address` of the account.
+- `get_manager` / `get_account_info`: Return the manager address and the full `AccountInfo` record.
 
 ### 2. Balance & Token Management
 ```rust
@@ -38,6 +41,7 @@ fn get_balances(env: Env) -> Vec<TokenBalance>;
 ### 3. Withdrawals & Governance
 ```rust
 fn withdraw_to(env: Env, token: Address, amount: i128, recipient: Address);
+fn sweep_to(env: Env, token: Address, amount: i128, recipient: Address);
 fn set_withdrawal_threshold(env: Env, threshold: i128);
 fn get_withdrawal_threshold(env: Env) -> i128;
 fn approve_withdrawal(env: Env, request_id: u64);
@@ -45,7 +49,8 @@ fn get_withdrawal_request(env: Env, request_id: u64) -> WithdrawalRequest;
 fn get_withdrawal_analytics(env: Env, token: Address) -> WithdrawalAnalytics;
 ```
 - `withdraw_to`: Initiates a transfer from the vault to `recipient`. Requires `merchant.require_auth()`. If `amount > withdrawal_threshold`, it triggers a pending `WithdrawalRequest` requiring manager approval.
-- `approve_withdrawal`: Called by `manager` to approve a high-value withdrawal request.
+- `sweep_to`: Manager-authorized transfer used by the hub's auto-withdrawal. It runs inside a payer's transaction, so it needs no merchant signature and is not subject to the threshold. It is blocked while the account is restricted.
+- `approve_withdrawal`: Called by `manager` to approve a high-value withdrawal request. It is blocked while the account is restricted.
 See [Merchant account withdrawals, thresholds, and approval requests](../concepts/merchant-account-withdrawals.md) for the full flow, state diagram, and restriction effects.
 
 ### 4. Verification & Restriction Controls
@@ -56,7 +61,7 @@ fn restrict_account(env: Env, status: bool);
 fn is_restricted_account(env: Env) -> bool;
 fn refund(env: Env, token: Address, amount: i128, to: Address);
 ```
-- `restrict_account`: Toggles restriction state. When `is_restricted_account` is `true`, all outbound withdrawals (`withdraw_to`) are blocked. Only the designated manager or hub admin can update restriction status.
+- `restrict_account`: Toggles restriction state. When `is_restricted_account` is `true`, all outbound withdrawals (`withdraw_to`, `sweep_to`, `approve_withdrawal`) and refunds are blocked. Only the designated manager or hub admin can update restriction status.
 - `refund`: Dispatches an authorized customer refund back to the buyer address.
 
 ---
@@ -64,10 +69,9 @@ fn refund(env: Env, token: Address, amount: i128, to: Address);
 ## Lifecycle: Deployment to Settlement
 
 1. **Upload WASM**: Admin uploads `account.wasm` bytecode to the network and invokes `set_account_wasm_hash` on the `shade` hub contract.
-2. **Factory Deployment**: The merchant or hub invokes the factory to deploy a new instance deterministically salted by `merchant_id`.
-3. **Association**: The newly deployed address is mapped in the hub contract via `set_merchant_account`.
-4. **Receiving Funds**: When customer invoices are settled via `pay_invoice`, net proceeds are routed directly to the merchant's `account` contract address.
-5. **Withdrawal**: Merchant invokes `withdraw_to` to transfer funds to cold storage or exchange addresses.
+2. **Factory Deployment**: The merchant calls `deploy_merchant_account` on the hub, which deploys a new instance salted by `merchant_id`, initializes it with the hub as manager, and links it.
+3. **Receiving Funds**: When customer invoices are settled via `pay_invoice`, net proceeds are routed directly to the merchant's `account` contract address.
+4. **Withdrawal**: Merchant invokes `withdraw_to` to transfer funds to cold storage or exchange addresses.
 
 ---
 

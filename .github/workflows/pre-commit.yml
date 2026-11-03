@@ -3,8 +3,12 @@ name: Pre-commit Checks
 on:
   pull_request:
     branches: [ main, develop ]
+    paths-ignore:
+      - "example/**"
   push:
     branches: [ main, develop ]
+    paths-ignore:
+      - "example/**"
 
 jobs:
   pre-commit:

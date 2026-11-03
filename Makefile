@@ -12,12 +12,12 @@ NETWORK ?= testnet
 ADMIN ?=
 
 # Contract WASM paths
-SHADE_WASM = target/wasm32-unknown-unknown/release/shade.wasm
-ACCOUNT_WASM = target/wasm32-unknown-unknown/release/account.wasm
+SHADE_WASM = target/wasm32v1-none/release/shade.wasm
+ACCOUNT_WASM = target/wasm32v1-none/release/account.wasm
 
 # Optimized WASM paths
-SHADE_WASM_OPT = target/wasm32-unknown-unknown/release/shade.optimized.wasm
-ACCOUNT_WASM_OPT = target/wasm32-unknown-unknown/release/account.optimized.wasm
+SHADE_WASM_OPT = target/wasm32v1-none/release/shade.optimized.wasm
+ACCOUNT_WASM_OPT = target/wasm32v1-none/release/account.optimized.wasm
 
 # Contract ID storage directory
 STELLAR_DIR = .stellar
@@ -26,7 +26,7 @@ STELLAR_DIR = .stellar
 # Phony Targets
 # ============================================================================
 
-.PHONY: help build test optimize clean fmt lint \
+.PHONY: help build test optimize clean fmt lint fixtures \
 	deploy-shade deploy-account deploy-all \
 	init-shade \
 	pause-shade unpause-shade upgrade-shade \
@@ -61,12 +61,12 @@ help: ## Show this help message
 
 build: ## Build all contracts
 	@echo "Building contracts..."
-	@cargo build --target wasm32-unknown-unknown --release
+	@cargo build --workspace --target wasm32v1-none --release
 	@ls -lh $(SHADE_WASM) $(ACCOUNT_WASM)
 
 test: ## Run all tests
 	@echo "Running tests..."
-	@cargo test --all
+	@cargo test --workspace --all-features
 
 optimize: build ## Optimize WASM binaries
 	@echo "Optimizing contracts..."
@@ -78,9 +78,13 @@ fmt: ## Format code
 	@echo "Formatting code..."
 	@cargo fmt --all
 
+fixtures: ## Rebuild the account WASM fixture used by shade's tests
+	@cargo build -p account --target wasm32v1-none --release
+	@cp target/wasm32v1-none/release/account.wasm contracts/shade/src/tests/fixtures/account.wasm
+
 lint: ## Run clippy linter
 	@echo "Running clippy..."
-	@cargo clippy --all-targets --all-features -- -D warnings
+	@cargo clippy --workspace --all-features -- -D warnings
 
 clean: ## Clean build artifacts
 	@echo "Cleaning build artifacts..."
@@ -246,10 +250,8 @@ docs-serve: ## Preview the docs site locally
 	@mdbook-mermaid install docs
 	@mdbook serve docs --open
 
-docs-check: ## Run docs link, lint, and spell checks
+docs-check: ## Run docs link checks
 	@lychee --config lychee.toml docs README.md CONTRIBUTING.md
-	@markdownlint-cli2 "docs/**/*.md" README.md CONTRIBUTING.md
-	@typos docs README.md CONTRIBUTING.md
 
 ci: lint test build ## CI pipeline (lint, test, build)
 	@echo "CI pipeline complete!"

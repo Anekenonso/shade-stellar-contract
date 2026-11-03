@@ -1,7 +1,9 @@
 use crate::errors::ContractError;
 use crate::events::{
     publish_account_initialized_event, publish_account_restricted_event,
-    publish_account_verified_event, publish_refund_processed_event, publish_token_added_event,
+    publish_account_verified_event, publish_pending_withdrawal_created_event,
+    publish_refund_processed_event, publish_token_added_event, publish_withdrawal_approved_event,
+    publish_withdrawal_executed_event, publish_withdrawal_threshold_set_event,
     publish_withdrawal_to_event,
 };
 use crate::interface::MerchantAccountTrait;
@@ -85,6 +87,17 @@ impl MerchantAccountTrait for MerchantAccount {
         env.storage()
             .persistent()
             .get(&DataKey::Merchant)
+            .unwrap_or_else(|| panic_with_error!(&env, ContractError::NotInitialized))
+    }
+
+    fn get_manager(env: Env) -> Address {
+        get_manager(&env)
+    }
+
+    fn get_account_info(env: Env) -> AccountInfo {
+        env.storage()
+            .persistent()
+            .get(&DataKey::AccountInfo)
             .unwrap_or_else(|| panic_with_error!(&env, ContractError::NotInitialized))
     }
 
@@ -213,18 +226,47 @@ impl MerchantAccountTrait for MerchantAccount {
             env.storage()
                 .persistent()
                 .set(&DataKey::WithdrawalCount, &id);
+            publish_pending_withdrawal_created_event(
+                &env,
+                id,
+                token,
+                amount,
+                recipient,
+                merchant,
+                env.ledger().timestamp(),
+            );
             return;
         }
 
-        Self::execute_withdrawal(&env, &token, amount, &recipient);
+        Self::execute_withdrawal_internal(&env, &token, amount, &recipient);
+    }
+
+    /// Manager-authorized sweep to the recipient the merchant configured on the
+    /// hub. It runs inside a payer's transaction, so it cannot need the merchant's
+    /// signature and is not subject to the withdrawal threshold.
+    fn sweep_to(env: Env, token: Address, amount: i128, recipient: Address) {
+        let manager = get_manager(&env);
+        manager.require_auth();
+
+        if is_restricted_account(&env) {
+            panic_with_error!(&env, ContractError::AccountRestricted);
+        }
+
+        Self::execute_withdrawal_internal(&env, &token, amount, &recipient);
     }
 
     fn set_withdrawal_threshold(env: Env, threshold: i128) {
         let manager = get_manager(&env);
         manager.require_auth();
+
+        if threshold < 0 {
+            panic_with_error!(&env, ContractError::InvalidThreshold);
+        }
+
         env.storage()
             .persistent()
             .set(&DataKey::Threshold, &threshold);
+        publish_withdrawal_threshold_set_event(&env, threshold, env.ledger().timestamp());
     }
 
     fn get_withdrawal_threshold(env: Env) -> i128 {
@@ -238,14 +280,14 @@ impl MerchantAccountTrait for MerchantAccount {
         let manager = get_manager(&env);
         manager.require_auth();
 
-        let mut request: WithdrawalRequest = env
-            .storage()
-            .persistent()
-            .get(&DataKey::WithdrawalRequest(request_id))
-            .unwrap_or_else(|| panic_with_error!(&env, ContractError::InvoiceNotFound));
+        if is_restricted_account(&env) {
+            panic_with_error!(&env, ContractError::AccountRestricted);
+        }
+
+        let mut request = Self::get_withdrawal_request(env.clone(), request_id);
 
         if request.status != WithdrawalStatus::Pending {
-            panic_with_error!(&env, ContractError::InvalidInvoiceStatus);
+            panic_with_error!(&env, ContractError::InvalidWithdrawalStatus);
         }
 
         // Add manager approval
@@ -259,6 +301,12 @@ impl MerchantAccountTrait for MerchantAccount {
 
         if !already_approved {
             request.approvals.push_back(manager.clone());
+            publish_withdrawal_approved_event(
+                &env,
+                request_id,
+                manager.clone(),
+                env.ledger().timestamp(),
+            );
         }
 
         // If we have 2 approvals (merchant initiated + manager approved), execute
@@ -270,6 +318,7 @@ impl MerchantAccountTrait for MerchantAccount {
                 request.amount,
                 &request.recipient,
             );
+            publish_withdrawal_executed_event(&env, request_id, env.ledger().timestamp());
         }
 
         env.storage()
@@ -281,15 +330,11 @@ impl MerchantAccountTrait for MerchantAccount {
         env.storage()
             .persistent()
             .get(&DataKey::WithdrawalRequest(request_id))
-            .unwrap()
+            .unwrap_or_else(|| panic_with_error!(&env, ContractError::WithdrawalRequestNotFound))
     }
 }
 
 impl MerchantAccount {
-    fn execute_withdrawal(env: &Env, token: &Address, amount: i128, recipient: &Address) {
-        Self::execute_withdrawal_internal(env, token, amount, recipient);
-    }
-
     fn execute_withdrawal_internal(env: &Env, token: &Address, amount: i128, recipient: &Address) {
         let token_client = token::TokenClient::new(env, token);
         let current_balance = token_client.balance(&env.current_contract_address());

@@ -2,6 +2,7 @@
 
 use crate::shade::Shade;
 use crate::shade::ShadeClient;
+use crate::tests::support::LinkMerchantAccount as _;
 use soroban_sdk::testutils::Address as _;
 use soroban_sdk::{Address, Env, String};
 
@@ -26,7 +27,7 @@ fn setup(env: &Env) -> (Address, ShadeClient<'_>, Address, Address, Address) {
 
     // Set a distinct merchant account address (a plain wallet), same pattern as test_payment tests.
     let merchant_account = Address::generate(env);
-    client.set_merchant_account(&merchant, &merchant_account);
+    client.link_merchant_account(&merchant, &merchant_account);
 
     (admin, client, token, merchant, merchant_account)
 }

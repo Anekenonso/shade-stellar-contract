@@ -10,10 +10,9 @@ Only the `shade` hub contract can replace its own code. `update_current_contract
 
 | Location | Path |
 |---|---|
-| Admin emergency upgrade | [`contracts/shade/src/components/upgrade.rs#L9-L10`](../../contracts/shade/src/components/upgrade.rs#L9-L10) |
-| Governance-approved upgrade | [`contracts/shade/src/components/governance.rs#L261-L262`](../../contracts/shade/src/components/governance.rs#L261-L262) |
+| Admin emergency upgrade | [`contracts/shade/src/components/upgrade.rs#L9-L10`](../../contracts/shade/src/components/upgrade.rs) |
 
-Every other contract in the repository — `account`, `escrow`, `ticketing`, `subscription`, `crowdfund`, and the three factories — is **immutable once deployed**. None of them exposes an upgrade entry point. A factory can change which WASM its *future* deployments use, which is a different thing entirely; see [Hub upgrades versus factory-deployed WASM](#hub-upgrades-versus-factory-deployed-wasm).
+The `account` contract has no upgrade entry point. Existing accounts keep the code they were deployed with.
 
 ## The upgrade mechanism
 
@@ -52,41 +51,6 @@ Three further properties of this path, all deliberate:
 - **It is not reentrancy-guarded.** `set_account_wasm_hash` wraps itself in `reentrancy::enter`/`exit`; `upgrade` does not. It makes no external calls, so there is nothing to re-enter.
 - **It takes effect for the next invocation, not the current one.** The rest of the transaction runs on the old code.
 
-### The governance path
-
-The admin path is the emergency lever. The routine path is the DAO flow in [`contracts/shade/src/components/governance.rs`](../../contracts/shade/src/components/governance.rs), which reaches the same host function through a council vote:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Admin
-    actor Member as Council member
-    participant Shade as Shade contract
-
-    Admin->>Shade: add_gov_member(admin, member)
-    Admin->>Shade: set_governance_config(admin, voting_period, quorum_bps)
-
-    Member->>Shade: propose_upgrade(proposer, wasm_hash)
-    Shade-->>Member: proposal_id, status Active, voting_ends_at
-
-    loop Until voting_ends_at
-        Member->>Shade: vote_on_upgrade(voter, proposal_id, approve)
-    end
-
-    Note over Shade: voting window closes
-    Member->>Shade: finalize_upgrade(caller, proposal_id)
-    alt quorum met and approvals > rejections
-        Shade->>Shade: update_current_contract_wasm(wasm_hash)
-        Shade-->>Member: status Executed, emits contract_upgraded_event
-    else
-        Shade-->>Member: status Defeated, no code change
-    end
-```
-
-The rules `finalize_upgrade` enforces: the caller must be a council member; the proposal must still be `Active`; the voting window must have closed; the required approvals are `ceil(member_count × quorum_bps / 10_000)`, floored at 1 so an empty council can never auto-pass; and the total votes cast must meet that quorum *and* approvals must exceed rejections. Either outcome closes the proposal exactly once, so `finalize_upgrade` cannot be replayed.
-
-> **Warning:** The two paths are independent. Nothing prevents the admin from calling `upgrade` directly while a proposal is open, and doing so does not close that proposal. Reserve the direct call for incidents, and record the reason.
-
 ### How storage survives
 
 A Soroban contract's deployed identity has two separable parts:
@@ -102,13 +66,13 @@ That is what makes storage compatibility your responsibility rather than the pla
 
 ## Storage compatibility rules
 
-These are not style preferences. Breaking one of them means the upgraded contract reads a stored value, fails to convert it, and traps — for every merchant, invoice, or campaign written before the upgrade, permanently, with no way back except another upgrade that restores the old shape.
+These are not style preferences. Breaking one of them means the upgraded contract reads a stored value, fails to convert it, and traps — for every merchant or invoice written before the upgrade, permanently, with no way back except another upgrade that restores the old shape.
 
 To reason about them you need to know how the SDK encodes each kind of type on the ledger.
 
 ### Key enums: the variant *name* is the identity
 
-`DataKey`, `EventKey`, `CampaignKey`, `GovKey`, and the rest of the per-domain key enums are `#[contracttype]` enums with unit and tuple variants. Each encodes to a vector whose first element is the **variant name as a symbol**, followed by its tuple arguments. On read, the SDK resolves that symbol against the list of variant names.
+`DataKey` is `#[contracttype]` enums with unit and tuple variants. Each encodes to a vector whose first element is the **variant name as a symbol**, followed by its tuple arguments. On read, the SDK resolves that symbol against the list of variant names.
 
 | Do | Don't |
 |---|---|
@@ -121,7 +85,7 @@ To reason about them you need to know how the SDK encodes each kind of type on t
 
 ### Integer enums: the *number* is the identity
 
-Enums declared `#[contracttype] #[repr(u32)]` with explicit discriminants — `InvoiceStatus`, `EscrowStatus`, `ProposalStatus` — encode as a bare `u32`. Here the rules invert:
+Enums declared `#[contracttype] #[repr(u32)]` with explicit discriminants — `InvoiceStatus`, `Role` — encode as a bare `u32`. Here the rules invert:
 
 | Do | Don't |
 |---|---|
@@ -131,7 +95,7 @@ Enums declared `#[contracttype] #[repr(u32)]` with explicit discriminants — `I
 
 ### Structs: the field name set is the identity
 
-`Merchant`, `Invoice`, `Escrow`, `Campaign`, `ContractInfo`, and every other stored `#[contracttype]` struct encodes as a map keyed by field-name symbols. Reading unpacks that map against the exact key set the current code expects.
+`Merchant`, `Invoice`, `ContractInfo`, and every other stored `#[contracttype]` struct encodes as a map keyed by field-name symbols. Reading unpacks that map against the exact key set the current code expects.
 
 **Adding a field to a stored struct is a breaking change.** So is removing one, and so is renaming one. An entry written before the change has the old key set; the new code asks for a different key set; the conversion fails and the call traps. There is no default-value fallback and no "ignore unknown fields" behavior.
 
@@ -234,24 +198,13 @@ The consequence to internalize:
 
 - **Merchant accounts deployed before the change keep running their original code, permanently.** The `account` contract exposes no upgrade entry point ([`contracts/account/src/interface.rs`](../../contracts/account/src/interface.rs) has no such method), so there is no call — by the admin, by the merchant, or by anyone — that replaces the code of an already-deployed merchant account.
 - **Only accounts deployed after the change run the new code.** The protocol therefore has a *fleet* of merchant accounts at mixed versions, and that spread is not something a later upgrade can collapse.
-- **Fixing a bug in the account contract does not fix it for existing merchants.** The remedy is a migration at the protocol level: deploy a new account for the affected merchant, have the merchant withdraw from the old one and repoint with `set_merchant_account`. Plan for this before shipping an account-contract change, not after.
+- **Fixing a bug in the account contract does not fix it for existing merchants.** The remedy is a migration at the protocol level: there is no in-place path today. `deploy_merchant_account` only runs once per merchant, so repointing a merchant needs a hub upgrade that adds an admin-gated migration. Plan for this before shipping an account-contract change, not after.
 
 > **Security:** Treat `set_account_wasm_hash` as high-risk despite being "just a storage write." Every merchant account deployed after the call runs whatever code that hash resolves to, and each such account custodies merchant balances. Verify the hash against a WASM you built and installed yourself — `stellar contract install` prints the hash it uploaded — and never accept one supplied by a third party.
 
-The same distinction applies to the standalone factories, with one important difference in how they are protected:
-
-| Factory | Setter | Authorization |
-|---|---|---|
-| `shade` (account factory component) | `set_account_wasm_hash` | Admin, via `core::assert_admin` |
-| [`ticketing_factory`](../../contracts/ticketing_factory/src/lib.rs) | `set_ticketing_wasm_hash` | Admin, via `require_auth` + `require_admin` |
-| [`escrow_factory`](../../contracts/escrow_factory/src/lib.rs) | *none* — hash is fixed at `initialize` | n/a |
-| [`crowdfund_factory`](../../contracts/crowdfund_factory/src/lib.rs) | `set_crowdfund_wasm_hash` | **None** |
-
-> **Security:** `CrowdfundFactory::set_crowdfund_wasm_hash` checks only that the factory has been initialized. It performs no `require_auth` and no admin check, so any address can repoint the factory at arbitrary WASM, and every campaign deployed afterwards will run it. This is a known gap in the current code, documented here so no one assumes the factories are uniformly protected. Do not model new factory code on this function; model it on `TicketingFactory::set_ticketing_wasm_hash`.
-
 ## Versioning and identifying a deployed build
 
-Shade does not carry a semantic version in its contract state. Every crate under [`contracts/`](../../contracts/) is `version = "0.0.0"` in its `Cargo.toml`, and that number is never read on chain.
+Shade does not carry a semantic version in its contract state. Every crate under [`contracts/`](../../contracts) is `version = "0.0.0"` in its `Cargo.toml`, and that number is never read on chain.
 
 **A deployed build is identified by its WASM hash.** The hash is the sha256 of the installed WASM, it is what `stellar contract install` returns, what `upgrade` takes as its only argument, and what the network stores as the contract instance's executable. Two deployments with the same hash are running byte-identical code; two with different hashes are not, regardless of what any version string says.
 
@@ -283,8 +236,6 @@ pub struct ContractUpgradedEvent {
 }
 ```
 
-The governance path additionally emits `upgrade_proposed_event`, `upgrade_vote_cast_event`, and `upgrade_proposal_finalized_event`, giving the proposal id, the proposer, the tally, and the council size at finalization.
-
 To tie a hash back to a source revision, keep the mapping yourself at release time — the chain stores no link from a hash to a commit. The practice to follow:
 
 1. Build with the plain `release` profile and optimize (`make optimize`), never `release-with-logs`. See [Building the Contracts](../getting-started/building.md#the-release-with-logs-profile).
@@ -302,12 +253,11 @@ Because the release profile is deterministic given the same toolchain and the co
 - [ ] A test writes pre-upgrade state, upgrades, and reads it back through the new code.
 - [ ] The build used the `release` profile and was optimized.
 - [ ] The WASM hash from `stellar contract install` is recorded against a tagged commit.
-- [ ] The upgrade went through the governance flow, or the reason for using the direct admin path is written down.
 - [ ] If the account contract changed, the plan for existing merchant accounts is written down — they will not be upgraded.
 
 ## Related pages
 
-- [Operations](../operations/README.md) — the operational upgrade runbook ("Proposing and voting on a contract upgrade" and "Responding to a stuck or failed governance proposal") is *planned*; this page is its technical companion.
+- [Operations](../operations/README.md) — the operational upgrade runbook; this page is its technical companion.
 - [Building the Contracts](../getting-started/building.md) — producing the optimized WASM an upgrade installs.
 - [Running the Test Suite](../getting-started/running-tests.md) — how `test_upgrade.rs` asserts post-upgrade state.
 - [Protocol Glossary](../glossary.md#wasm-hash) — WASM hash, contract id, and storage durability terms.

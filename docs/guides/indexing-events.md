@@ -28,7 +28,7 @@ The response returns an array of event objects, each carrying (per the Stellar R
 
 ## 2. Event catalog
 
-Every event `#[contractevent]` struct relevant to merchants, invoices, payments, refunds, subscriptions, and tickets, from [`contracts/shade/src/events.rs`](../../contracts/shade/src/events.rs). All are emitted by the `shade` contract; there is currently no separate on-chain event emission for merchant, invoice, or payment activity from the standalone `account`, `escrow`, `subscription`, or `ticketing` crates when they are used independently of the hub.
+Every event `#[contractevent]` struct relevant to merchants, invoices, payments, and refunds, from [`contracts/shade/src/events.rs`](../../contracts/shade/src/events.rs). All are emitted by the `shade` contract; there is currently no separate on-chain event emission for merchant, invoice, or payment activity from the standalone `account`, `escrow`, `subscription`, or `ticketing` crates when they are used independently of the hub.
 
 | Event | Business entity | Payload fields | Ordering considerations |
 |---|---|---|---|
@@ -47,14 +47,6 @@ Every event `#[contractevent]` struct relevant to merchants, invoices, payments,
 | `InvoicePartiallyRefundedEvent` | Refund | `invoice_id`, `merchant`, `amount`, `total_amount_refunded`, `timestamp` | `total_amount_refunded` is cumulative across all partial refunds on this invoice, not just this event's `amount`. |
 | `InvoiceCancelledEvent` | Invoice | `invoice_id`, `merchant`, `timestamp` | This is the event `void_invoice` emits — there is no separately named "voided" event. |
 | `InvoiceAmendedEvent` | Invoice | `invoice_id`, `merchant`, `old_amount`, `new_amount`, `timestamp` | Only fires for unfinalized (draft) invoices via `amend_invoice`. |
-| `SubscriptionPlanCreatedEvent` | Subscription | `plan_id`, `merchant`, `token`, `amount`, `interval`, `timestamp` | One per plan. |
-| `SubscribedEvent` | Subscription | `subscription_id`, `plan_id`, `customer`, `timestamp` | One per subscription creation. |
-| `SubscriptionChargedEvent` | Payment | `subscription_id`, `plan_id`, `customer`, `merchant`, `amount`, `fee`, `token`, `timestamp` | Recurs once per successful `charge_subscription` call; `PlatformFeeRoutedEvent` also fires alongside it. |
-| `SubscriptionCancelledEvent` | Subscription | `subscription_id`, `caller`, `timestamp` | `caller` may be either the customer or the merchant — both are permitted to cancel. |
-| `PlanDeactivatedEvent` | Subscription | `plan_id`, `merchant`, `timestamp` | Does not cancel existing subscriptions on the plan; only blocks new enrollment. |
-| `EventCreatedEvent` | Ticket (event) | `event_id`, `merchant`, `merchant_id`, `name`, `ticket_price`, `token`, `capacity`, `event_date`, `royalty_bps`, `timestamp` | One per ticketed event. |
-| `TicketPurchasedEvent` | Ticket | `ticket_id`, `event_id`, `merchant_id`, `buyer`, `amount`, `fee`, `merchant_amount`, `token`, `timestamp` | One per ticket, including each ticket within a `purchase_tickets_bulk` call. |
-| `TicketResoldEvent` | Ticket | `ticket_id`, `event_id`, `merchant_id`, `seller`, `buyer`, `resale_price`, `royalty`, `seller_proceeds`, `token`, `timestamp` | Secondary-market resale; does not affect original `TicketPurchasedEvent` history. |
 | `FiatInvoicePricedEvent` | Invoice | `invoice_id`, `token`, `resolved_amount`, `timestamp` | Only for fiat-denominated invoices, at the moment of oracle-price resolution. |
 
 Configuration-adjacent events worth tracking even though they are not a business entity above: `TokenAddedEvent`/`TokenRemovedEvent` (global accepted-token whitelist changes — affects which tokens `is_token_accepted_for_merchant` will allow by default), and `ContractUpgradedEvent` (see [Upgradeability](../architecture/upgradeability.md#establishing-what-is-deployed) — track this if your indexer needs to know when the contract's behavior may have changed).
@@ -86,7 +78,7 @@ A recommended schema. Adapt field types to your database; `i128` amounts should 
 | `merchant_id` | bigint | Resolved from `InvoiceCreatedEvent.merchant` (an `Address`) via the `merchants` table, or a `find_merchant_id` read if the merchant isn't indexed yet |
 | `token` | text | `InvoiceCreatedEvent.token` |
 | `amount` | numeric | `InvoiceCreatedEvent.amount` |
-| `status` | text/enum | Derived: `Pending` at creation, `Paid`/`PartiallyPaid` on `InvoicePaidEvent`, `Cancelled` on `InvoiceCancelledEvent`, `Refunded`/`PartiallyRefunded` on refund events — mirror `InvoiceStatus` from [`contracts/shade/src/types.rs#L358-L366`](../../contracts/shade/src/types.rs#L358-L366) |
+| `status` | text/enum | Derived: `Pending` at creation, `Paid`/`PartiallyPaid` on `InvoicePaidEvent`, `Cancelled` on `InvoiceCancelledEvent`, `Refunded`/`PartiallyRefunded` on refund events — mirror `InvoiceStatus` from [`contracts/shade/src/types.rs#L358-L366`](../../contracts/shade/src/types.rs) |
 | `amount_paid` | numeric | Cumulative from `InvoicePaidEvent`s for this invoice |
 | `amount_refunded` | numeric | Cumulative from `InvoicePartiallyRefundedEvent.total_amount_refunded`, or full `InvoiceRefundedEvent.amount` |
 | `creation_ledger` | bigint | Ledger of `InvoiceCreatedEvent` |
@@ -122,35 +114,11 @@ One row per `InvoicePaidEvent`, including each partial payment — this table is
 | `ledger` | bigint | Ledger the event was emitted in |
 | `tx_hash` | text | Transaction hash |
 
-### subscriptions
-
-| Column | Type | Source |
-|---|---|---|
-| `subscription_id` | bigint, primary key | `SubscribedEvent.subscription_id` |
-| `plan_id` | bigint | `SubscribedEvent.plan_id` |
-| `customer` | text | `SubscribedEvent.customer` |
-| `merchant_id` | bigint | Resolved from the plan's merchant (via `SubscriptionPlanCreatedEvent.merchant` or a `get_subscription_plan` read) |
-| `status` | text/enum | Derived: active at `SubscribedEvent`, cancelled at `SubscriptionCancelledEvent` — mirror `SubscriptionStatus` |
-| `last_charge_ledger` | bigint, nullable | Ledger of the most recent `SubscriptionChargedEvent` for this subscription |
-| `last_charge_amount` | numeric, nullable | `SubscriptionChargedEvent.amount` |
-
-### tickets
-
-| Column | Type | Source |
-|---|---|---|
-| `ticket_id` | bigint, primary key | `TicketPurchasedEvent.ticket_id` |
-| `event_id` | bigint | `TicketPurchasedEvent.event_id` |
-| `merchant_id` | bigint | `TicketPurchasedEvent.merchant_id` |
-| `owner` | text | Latest holder — `TicketPurchasedEvent.buyer` at mint, updated to `TicketResoldEvent.buyer` on resale |
-| `amount` | numeric | `TicketPurchasedEvent.amount` (original purchase) |
-| `token` | text | `TicketPurchasedEvent.token` |
-| `purchase_ledger` | bigint | Ledger of `TicketPurchasedEvent` |
-
 ## 4. Idempotency
 
 **Primary idempotency key:** `{contract_id}:{ledger}:{tx_hash}:{event_index_within_tx}` (or the ledger + event-index form described in [Webhooks: Idempotency](webhooks.md#idempotency) if your RPC provider exposes a clean per-ledger event index directly). Verify exactly what fields your specific `soroban-rpc` provider/SDK version returns per event before finalizing which of these you compose the key from — see [the data source section above](#event-data-source).
 
-**Why event payload values alone are insufficient:** two distinct on-chain events can carry identical payload values — two `InvoiceCreatedEvent`s for two different merchants could coincidentally have the same `amount` and `token`; a subscription charged twice at the same recurring `amount` produces two `SubscriptionChargedEvent`s with identical fields except for ledger position. Only the ledger/transaction/event-index identity is guaranteed unique per emission.
+**Why event payload values alone are insufficient:** two distinct on-chain events can carry identical payload values — two `InvoiceCreatedEvent`s for two different merchants could coincidentally have the same `amount` and `token`. Only the ledger/transaction/event-index identity is guaranteed unique per emission.
 
 **Enforce with a database unique constraint**, not just an application-level check:
 

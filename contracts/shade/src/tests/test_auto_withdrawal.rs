@@ -1,10 +1,11 @@
 #![cfg(test)]
 
 use crate::shade::{Shade, ShadeClient};
+use crate::tests::support::LinkMerchantAccount as _;
 use crate::types::InvoiceStatus;
 use account::account::{MerchantAccount, MerchantAccountClient};
-use soroban_sdk::testutils::Address as _;
-use soroban_sdk::{token, Address, Env, String};
+use soroban_sdk::testutils::{Address as _, Events as _, MockAuth, MockAuthInvoke};
+use soroban_sdk::{token, Address, Env, IntoVal, String, Symbol, TryIntoVal};
 
 fn setup_test_with_auto_withdrawal() -> (
     Env,
@@ -15,10 +16,9 @@ fn setup_test_with_auto_withdrawal() -> (
     Address,
 ) {
     let env = Env::default();
-    // Auto-withdrawal sweeps funds via a `withdraw_to` call that the merchant
-    // account authorizes deep in the payment call tree (non-root), so allow
-    // non-root auth here.
-    env.mock_all_auths_allowing_non_root_auth();
+    // Root auth only: a sweep that needed the merchant's signature deep in the
+    // payment call tree would fail here, as it would on a real payer's transaction.
+    env.mock_all_auths();
 
     // Register Shade contract
     let shade_contract_id = env.register(Shade, ());
@@ -43,11 +43,11 @@ fn setup_test_with_auto_withdrawal() -> (
     shade_client.register_merchant(&merchant);
 
     // Deploy + link a real merchant-account contract so payments can settle and
-    // auto-withdrawal can sweep funds out via `withdraw_to`.
+    // auto-withdrawal can sweep funds out via `sweep_to`.
     let merchant_account_id = env.register(MerchantAccount, ());
     let merchant_account = MerchantAccountClient::new(&env, &merchant_account_id);
     merchant_account.initialize(&merchant, &shade_contract_id, &1_u64);
-    shade_client.set_merchant_account(&merchant, &merchant_account_id);
+    shade_client.link_merchant_account(&merchant, &merchant_account_id);
 
     (
         env,
@@ -259,4 +259,120 @@ fn test_auto_withdrawal_threshold_per_token() {
 
     assert_eq!(retrieved1, Some(threshold1));
     assert_eq!(retrieved2, Some(threshold2));
+}
+
+fn emitted(env: &Env, contract_id: &Address, name: &str) -> bool {
+    let wanted = Symbol::new(env, name);
+    env.events().all().iter().any(|(contract, topics, _)| {
+        let topic: Option<Symbol> = topics.get(0).and_then(|t| t.try_into_val(env).ok());
+        contract == *contract_id && topic == Some(wanted.clone())
+    })
+}
+
+/// The whole point of the sweep: only the payer signs, and the payment still
+/// settles and sweeps when it crosses the threshold.
+#[test]
+fn test_sweep_succeeds_with_only_the_payers_signature() {
+    let (env, shade_client, shade_contract_id, _admin, merchant, token) =
+        setup_test_with_auto_withdrawal();
+    let recipient = Address::generate(&env);
+    shade_client.set_auto_withdrawal_threshold(&merchant, &token, &5_000i128);
+    shade_client.set_auto_withdrawal_recipient(&merchant, &recipient);
+
+    let amount = 10_000i128;
+    let invoice_id = shade_client.create_invoice(
+        &merchant,
+        &String::from_str(&env, "Payer signs alone"),
+        &amount,
+        &token,
+        &None,
+    );
+
+    let payer = Address::generate(&env);
+    let sac = token::StellarAssetClient::new(&env, &token);
+    sac.mint(&payer, &amount);
+
+    let merchant_account = shade_client.get_merchant_account(&1u64);
+    let platform = shade_client.get_platform_account();
+    let merchant_amount = 9_500i128;
+    let fee = 500i128;
+
+    env.mock_auths(&[MockAuth {
+        address: &payer,
+        invoke: &MockAuthInvoke {
+            contract: &shade_contract_id,
+            fn_name: "pay_invoice",
+            args: (payer.clone(), invoice_id).into_val(&env),
+            sub_invokes: &[
+                MockAuthInvoke {
+                    contract: &token,
+                    fn_name: "transfer",
+                    args: (payer.clone(), merchant_account.clone(), merchant_amount).into_val(&env),
+                    sub_invokes: &[],
+                },
+                MockAuthInvoke {
+                    contract: &token,
+                    fn_name: "transfer",
+                    args: (payer.clone(), platform.clone(), fee).into_val(&env),
+                    sub_invokes: &[],
+                },
+            ],
+        },
+    }]);
+    shade_client.pay_invoice(&payer, &invoice_id);
+    assert!(emitted(
+        &env,
+        &shade_contract_id,
+        "auto_withdrawal_triggered_event"
+    ));
+
+    assert_eq!(sac.balance(&recipient), merchant_amount);
+    assert_eq!(sac.balance(&merchant_account), 0);
+    assert_eq!(
+        shade_client.get_invoice(&invoice_id).status,
+        InvoiceStatus::Paid
+    );
+}
+
+/// A restricted account blocks the sweep but must not cost the payer the payment.
+#[test]
+fn test_failed_sweep_keeps_the_payment_and_reports_failure() {
+    let (env, shade_client, shade_contract_id, admin, merchant, token) =
+        setup_test_with_auto_withdrawal();
+    let recipient = Address::generate(&env);
+    shade_client.set_auto_withdrawal_threshold(&merchant, &token, &5_000i128);
+    shade_client.set_auto_withdrawal_recipient(&merchant, &recipient);
+    shade_client.restrict_merchant_account(&admin, &merchant, &true);
+
+    let amount = 10_000i128;
+    let invoice_id = shade_client.create_invoice(
+        &merchant,
+        &String::from_str(&env, "Restricted"),
+        &amount,
+        &token,
+        &None,
+    );
+    let payer = Address::generate(&env);
+    let sac = token::StellarAssetClient::new(&env, &token);
+    sac.mint(&payer, &amount);
+
+    shade_client.pay_invoice(&payer, &invoice_id);
+    assert!(emitted(
+        &env,
+        &shade_contract_id,
+        "auto_withdrawal_failed_event"
+    ));
+    assert!(!emitted(
+        &env,
+        &shade_contract_id,
+        "auto_withdrawal_triggered_event"
+    ));
+
+    let merchant_account = shade_client.get_merchant_account(&1u64);
+    assert_eq!(sac.balance(&recipient), 0);
+    assert_eq!(sac.balance(&merchant_account), 9_500);
+    assert_eq!(
+        shade_client.get_invoice(&invoice_id).status,
+        InvoiceStatus::Paid
+    );
 }

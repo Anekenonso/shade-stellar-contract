@@ -5,7 +5,7 @@ This page covers building the Shade Protocol workspace for development and for d
 ## Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install) (stable toolchain)
-- The `wasm32-unknown-unknown` target: `rustup target add wasm32-unknown-unknown`
+- The `wasm32v1-none` target: `rustup target add wasm32v1-none`
 - [Stellar CLI](https://developers.stellar.org/docs/build/smart-contracts/getting-started/setup) (`stellar`) for optimizing and deploying WASM
 
 ## The workspace
@@ -15,14 +15,7 @@ The repository is a Cargo workspace (see [`Cargo.toml`](../../Cargo.toml)) whose
 ```text
 contracts/
 ├── account/
-├── crowdfund/
-├── crowdfund_factory/
-├── escrow/
-├── escrow_factory/
 ├── shade/
-├── subscription/
-├── ticketing/
-└── ticketing_factory/
 ```
 
 Each crate builds as both a `lib` and a `cdylib` (see each crate's `Cargo.toml`, e.g. [`contracts/shade/Cargo.toml`](../../contracts/shade/Cargo.toml)) — `lib` for native builds and tests, `cdylib` for the WASM binary Soroban actually deploys.
@@ -47,40 +40,33 @@ Native build artifacts land under `target/debug/`. These binaries are not deploy
 
 ## WASM build
 
-Soroban contracts must be compiled to `wasm32-unknown-unknown`. To build every contract in the workspace as WASM:
+Soroban contracts must be compiled to `wasm32v1-none`. To build every contract in the workspace as WASM:
 
 ```bash
-cargo build --target wasm32-unknown-unknown --release
+cargo build --target wasm32v1-none --release
 ```
 
 This uses the `[profile.release]` settings in the workspace [`Cargo.toml`](../../Cargo.toml) (see [Release profile settings](#release-profile-settings) below). Artifacts land under:
 
 ```text
-target/wasm32-unknown-unknown/release/<crate-name>.wasm
+target/wasm32v1-none/release/<crate-name>.wasm
 ```
 
 For example:
 
 ```text
-target/wasm32-unknown-unknown/release/shade.wasm
-target/wasm32-unknown-unknown/release/account.wasm
-target/wasm32-unknown-unknown/release/escrow.wasm
-target/wasm32-unknown-unknown/release/escrow_factory.wasm
-target/wasm32-unknown-unknown/release/subscription.wasm
-target/wasm32-unknown-unknown/release/ticketing.wasm
-target/wasm32-unknown-unknown/release/ticketing_factory.wasm
-target/wasm32-unknown-unknown/release/crowdfund.wasm
-target/wasm32-unknown-unknown/release/crowdfund_factory.wasm
+target/wasm32v1-none/release/shade.wasm
+target/wasm32v1-none/release/account.wasm
 ```
 
-Each crate's WASM file name matches its `[package].name` in that crate's `Cargo.toml` (`shade`, `account`, `escrow`, and so on), with `-` replaced by `_`.
+Each crate's WASM file name matches its `[package].name` in that crate's `Cargo.toml` (`shade`, `account`, and so on), with `-` replaced by `_`.
 
 To build only one contract crate's WASM instead of the whole workspace:
 
 ```bash
-cargo build --target wasm32-unknown-unknown --release --manifest-path contracts/shade/Cargo.toml
+cargo build --target wasm32v1-none --release --manifest-path contracts/shade/Cargo.toml
 # equivalently:
-cargo build --target wasm32-unknown-unknown --release -p shade
+cargo build --target wasm32v1-none --release -p shade
 ```
 
 ## The `release-with-logs` profile
@@ -96,7 +82,7 @@ debug-assertions = true
 Use this profile when you need `log!` output or debug assertions while testing a contract on a local network — a plain `release` build strips debug assertions along with everything else, so failures that only show up with assertions enabled (or diagnostic logging) go silent. Build with it the same way, naming the profile explicitly:
 
 ```bash
-cargo build --target wasm32-unknown-unknown --profile release-with-logs
+cargo build --target wasm32v1-none --profile release-with-logs
 ```
 
 > **Note:** Don't ship a `release-with-logs` build to a live network. It exists for local debugging; use the plain `release` profile (via `stellar contract optimize`, below) for anything deployed to testnet, futurenet, or mainnet.
@@ -123,21 +109,21 @@ See the [Stellar docs on the release profile](https://developers.stellar.org/doc
 A `cargo build --release` WASM is already using the profile above, but the Stellar CLI applies further WASM-specific optimization (e.g. `wasm-opt`-style trimming) on top of it before deployment. Run it per contract:
 
 ```bash
-stellar contract optimize --wasm target/wasm32-unknown-unknown/release/shade.wasm
-stellar contract optimize --wasm target/wasm32-unknown-unknown/release/account.wasm
+stellar contract optimize --wasm target/wasm32v1-none/release/shade.wasm
+stellar contract optimize --wasm target/wasm32v1-none/release/account.wasm
 ```
 
 This writes an optimized copy alongside the input, suffixed `.optimized.wasm`:
 
 ```text
-target/wasm32-unknown-unknown/release/shade.optimized.wasm
-target/wasm32-unknown-unknown/release/account.optimized.wasm
+target/wasm32v1-none/release/shade.optimized.wasm
+target/wasm32v1-none/release/account.optimized.wasm
 ```
 
 Check the resulting size per contract:
 
 ```bash
-ls -lh target/wasm32-unknown-unknown/release/*.optimized.wasm
+ls -lh target/wasm32v1-none/release/*.optimized.wasm
 ```
 
 The `.optimized.wasm` file — not the plain `.wasm` file — is what you deploy with `stellar contract deploy` or `stellar contract install`.
@@ -147,7 +133,7 @@ The `.optimized.wasm` file — not the plain `.wasm` file — is what you deploy
 The repository's [`Makefile`](../../Makefile) wraps the commands above for the `shade` and `account` contracts specifically:
 
 ```bash
-make build      # cargo build --target wasm32-unknown-unknown --release, for shade + account
+make build      # cargo build --target wasm32v1-none --release, for shade + account
 make optimize   # build, then stellar contract optimize for shade + account
 ```
 

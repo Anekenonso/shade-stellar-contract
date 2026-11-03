@@ -293,6 +293,5 @@ flowchart TD
 
 ## Related pages
 
-* [Fiat pricing and oracles](./fiat-pricing-and-oracles.md)
-* [Escrow](./escrow.md)
+* [Fiat pricing and oracles](fiat-pricing-and-oracles.md)
 * [Contracts](../contracts/README.md)
