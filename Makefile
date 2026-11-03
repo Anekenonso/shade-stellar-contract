@@ -12,12 +12,12 @@ NETWORK ?= testnet
 ADMIN ?=
 
 # Contract WASM paths
-SHADE_WASM = target/wasm32-unknown-unknown/release/shade.wasm
-ACCOUNT_WASM = target/wasm32-unknown-unknown/release/account.wasm
+SHADE_WASM = target/wasm32v1-none/release/shade.wasm
+ACCOUNT_WASM = target/wasm32v1-none/release/account.wasm
 
 # Optimized WASM paths
-SHADE_WASM_OPT = target/wasm32-unknown-unknown/release/shade.optimized.wasm
-ACCOUNT_WASM_OPT = target/wasm32-unknown-unknown/release/account.optimized.wasm
+SHADE_WASM_OPT = target/wasm32v1-none/release/shade.optimized.wasm
+ACCOUNT_WASM_OPT = target/wasm32v1-none/release/account.optimized.wasm
 
 # Contract ID storage directory
 STELLAR_DIR = .stellar
@@ -61,12 +61,12 @@ help: ## Show this help message
 
 build: ## Build all contracts
 	@echo "Building contracts..."
-	@cargo build --target wasm32-unknown-unknown --release
+	@cargo build --workspace --target wasm32v1-none --release
 	@ls -lh $(SHADE_WASM) $(ACCOUNT_WASM)
 
 test: ## Run all tests
 	@echo "Running tests..."
-	@cargo test --all
+	@cargo test --workspace --all-features
 
 optimize: build ## Optimize WASM binaries
 	@echo "Optimizing contracts..."
@@ -84,7 +84,7 @@ fixtures: ## Rebuild the account WASM fixture used by shade's tests
 
 lint: ## Run clippy linter
 	@echo "Running clippy..."
-	@cargo clippy --all-targets --all-features -- -D warnings
+	@cargo clippy --workspace --all-features -- -D warnings
 
 clean: ## Clean build artifacts
 	@echo "Cleaning build artifacts..."
